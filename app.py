@@ -95,27 +95,33 @@ def load_data():
 
 
 def build_period_contribution(cont_old, cont, pc_row):
-    """Aggregate contribution for a given PC period."""
+    """Aggregate contribution for a given PC period.
+    ContribData values:
+      - 'Available in sheet "Contribution_old"' → use cont_old
+      - '"Need to calculate in sheet "Contribution"' → aggregate from daily cont
+    """
     sd, ed = pc_row['StartDate'], pc_row['EndDate']
     cd = str(pc_row['ContribData'])
 
-    if 'Contribution_old' in cd or 'Contribution old' in cd:
+    if 'Contribution_old' in cd:
+        # Use pre-aggregated data from cont_old
         df = cont_old[(cont_old['StartDate'] == sd) & (cont_old['EndDate'] == ed)].copy()
-        if df.empty:
-            # fall back to date-range match in daily
-            df = cont[(cont['Date'] >= sd) & (cont['Date'] <= ed)].copy()
-            if not df.empty:
-                df = df.groupby(['StockCode', 'Type'])['InfluenceIndex'].sum().reset_index()
-        else:
-            df = df[['StockCode', 'InfluenceIndex', 'Type']].copy()
-    elif 'Contribution' in cd:
-        df = cont[(cont['Date'] >= sd) & (cont['Date'] <= ed)].copy()
         if not df.empty:
-            df = df.groupby(['StockCode', 'Type'])['InfluenceIndex'].sum().reset_index()
-    else:
-        df = pd.DataFrame()
+            return df[['StockCode', 'InfluenceIndex', 'Type']].copy()
+        # fallback to daily aggregation
+        df = cont[(cont['Date'] >= sd) & (cont['Date'] <= ed)]
+        if not df.empty:
+            return df.groupby(['StockCode', 'Type'])['InfluenceIndex'].sum().reset_index()
+        return pd.DataFrame()
 
-    return df
+    elif 'Contribution' in cd:
+        # "Need to calculate" — aggregate daily contribution in date range
+        df = cont[(cont['Date'] >= sd) & (cont['Date'] <= ed)]
+        if not df.empty:
+            return df.groupby(['StockCode', 'Type'])['InfluenceIndex'].sum().reset_index()
+        return pd.DataFrame()
+
+    return pd.DataFrame()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -147,12 +153,16 @@ def render_tab1(hist, pc, cont_old, cont):
     st.divider()
 
     # ── Pivot table: each period as column ──────────────────────────────────
-    periods_with_data = pc_filtered[pc_filtered['ContribData'].str.contains('Available|Contribution|sheet', na=False, case=False)]
+    # Fix: "Not available" also contains "available" → must exclude it explicitly
+    periods_with_data = pc_filtered[
+        pc_filtered['ContribData'].str.contains('Available in|Need to calculate', na=False, case=False)
+    ]
 
     all_rows = []
     period_labels = []
     for _, row in periods_with_data.iterrows():
-        label = f"{'🟢' if row['Type']=='UP' else '🔴'} {row['StartDate'].strftime('%Y-%m-%d')}"
+        pct_str = f"{row['ChangePct']*100:+.0f}%"
+        label = f"{'🟢' if row['Type']=='UP' else '🔴'} {row['StartDate'].strftime('%m/%y')} {pct_str}"
         period_labels.append(label)
         df = build_period_contribution(cont_old, cont, row)
         if not df.empty:
@@ -186,7 +196,7 @@ def render_tab1(hist, pc, cont_old, cont):
             if val > 0: return 'background-color: #1a3a1a; color: #3fb950; font-weight: bold'
             return 'background-color: #3a1a1a; color: #f85149'
 
-        styled = pivot_g.style.applymap(style_gainer).format("{:.2f}", na_rep="-")
+        styled = pivot_g.style.map(style_gainer).format("{:.2f}", na_rep="-")
         st.dataframe(styled, use_container_width=True, height=400)
 
     # Top losers
@@ -204,7 +214,7 @@ def render_tab1(hist, pc, cont_old, cont):
             if val < 0: return 'background-color: #3a1a1a; color: #f85149; font-weight: bold'
             return 'background-color: #1a3a1a; color: #3fb950'
 
-        styled_l = pivot_l.style.applymap(style_loser).format("{:.2f}", na_rep="-")
+        styled_l = pivot_l.style.map(style_loser).format("{:.2f}", na_rep="-")
         st.dataframe(styled_l, use_container_width=True, height=350)
 
     # Tổng hợp theo từng đợt (dashboard-style header rows như ảnh mẫu)
@@ -233,8 +243,8 @@ def render_tab1(hist, pc, cont_old, cont):
             return 'color: #f85149'
 
         styled_sum = df_sum.style\
-            .applymap(color_type, subset=['Loại'])\
-            .applymap(color_change, subset=['Thay đổi'])
+            .map(color_type, subset=['Loại'])\
+            .map(color_change, subset=['Thay đổi'])
         st.dataframe(styled_sum, use_container_width=True, hide_index=True)
 
 
@@ -374,7 +384,7 @@ def render_tab3(pc, cont_old, cont):
 
     # Build full contribution df across all periods
     all_rows = []
-    periods_with_data = pc[pc['ContribData'].str.contains('Available|Contribution|sheet', na=False, case=False)]
+    periods_with_data = pc[pc['ContribData'].str.contains('Available in|Need to calculate', na=False, case=False)]
 
     for _, row in periods_with_data.iterrows():
         df = build_period_contribution(cont_old, cont, row)
@@ -523,7 +533,7 @@ def render_tab3(pc, cont_old, cont):
             'AppearRate': 'Tần suất (%)', 'PosRate': 'Xác suất + (%)',
             'Score': 'Điểm tổng hợp'
         })\
-        .style.applymap(color_score, subset=['Tổng đóng góp', 'TB/đợt', 'Điểm tổng hợp'])
+        .style.map(color_score, subset=['Tổng đóng góp', 'TB/đợt', 'Điểm tổng hợp'])
 
     st.dataframe(styled_rank, use_container_width=True, height=450)
 
