@@ -353,3 +353,4 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                     <tbody>{rows_html}</tbody>
                   </table>
                 </div>
+                """
