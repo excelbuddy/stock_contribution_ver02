@@ -242,14 +242,19 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
             badge_color  = "#00c853" if ptype == "UP" else "#ff1744"
 
             with col:
-                # Header card
+                # Pre-compute % contribution correctly:
+                # % = InfluenceIndex / sum of ALL |InfluenceIndex| in this period * 100
+                total_abs = df_p["InfluenceIndex"].abs().sum() if not df_p.empty else 0
+
+                gap_pts = vi_e - vi_s  # GAP in points
+
+                # Header card — 2 rows of metrics: row1: Số ngày GD / VNI Start / VNI End
+                #                                   row2: GAP (điểm) / GAP (%) badge
                 st.markdown(f"""
                 <div style="background:{color_header}; border-radius:8px 8px 0 0;
                             padding:10px 12px; margin-bottom:0;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:11px; color:#ccc;">
-                      Đỉnh/Đáy {period_number}
-                    </span>
+                    <span style="font-size:11px; color:#ccc;">Đỉnh/Đáy {period_number}</span>
                     <span style="background:{badge_color}; color:white; font-weight:700;
                                  padding:2px 10px; border-radius:4px; font-size:12px;">
                       {ptype}
@@ -258,18 +263,26 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                   <div style="font-size:11px; color:#eee; margin-top:4px;">
                     {sd.strftime('%Y-%m-%d')} → {ed.strftime('%Y-%m-%d')}
                   </div>
-                  <div style="display:flex; gap:8px; margin-top:6px;">
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 8px; text-align:center;">
-                      <div style="font-size:10px; color:#aaa;">Số ngày GD</div>
-                      <div style="font-weight:700; color:white;">{days}</div>
+                  <div style="display:flex; gap:6px; margin-top:6px;">
+                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
+                      <div style="font-size:9px; color:#aaa;">Số ngày GD</div>
+                      <div style="font-weight:700; color:white; font-size:13px;">{days}</div>
                     </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 8px; text-align:center;">
-                      <div style="font-size:10px; color:#aaa;">VNI Start</div>
-                      <div style="font-weight:700; color:white;">{vi_s:,.0f}</div>
+                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
+                      <div style="font-size:9px; color:#aaa;">VNI Start</div>
+                      <div style="font-weight:700; color:white; font-size:13px;">{vi_s:,.0f}</div>
                     </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 8px; text-align:center;">
-                      <div style="font-size:10px; color:#aaa;">+/- (%)</div>
-                      <div style="font-weight:700; color:{badge_color};">{chg:+.1f}%</div>
+                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
+                      <div style="font-size:9px; color:#aaa;">VNI End</div>
+                      <div style="font-weight:700; color:white; font-size:13px;">{vi_e:,.0f}</div>
+                    </div>
+                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
+                      <div style="font-size:9px; color:#aaa;">GAP (điểm)</div>
+                      <div style="font-weight:700; color:{badge_color}; font-size:13px;">{gap_pts:+.1f}</div>
+                    </div>
+                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
+                      <div style="font-size:9px; color:#aaa;">GAP (%)</div>
+                      <div style="font-weight:700; color:{badge_color}; font-size:13px;">{chg:+.1f}%</div>
                     </div>
                   </div>
                 </div>
@@ -284,32 +297,37 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                     )
                     continue
 
-                # Build HTML table
+                # Build HTML table rows
+                # % = InfluenceIndex / total_abs_all * 100  (correct logic per user)
                 rows_html = ""
                 max_rows = max(len(gainers), len(losers))
                 for i in range(max_rows):
-                    g_cp = g_inf = g_code = ""
-                    l_cp = l_inf = l_code = ""
+                    g_cp = g_inf = g_pct = g_code = ""
+                    l_cp = l_inf = l_pct = l_code = ""
                     if i < len(gainers):
                         g = gainers.iloc[i]
                         g_code = g["StockCode"]
                         g_cp   = str(g["ClosePrice"]) if pd.notna(g["ClosePrice"]) else ""
                         g_inf  = f"{g['InfluenceIndex']:+.1f}"
+                        g_pct  = f"{g['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
                     if i < len(losers):
                         l = losers.iloc[i]
                         l_code = l["StockCode"]
                         l_cp   = str(l["ClosePrice"]) if pd.notna(l["ClosePrice"]) else ""
                         l_inf  = f"{l['InfluenceIndex']:+.1f}"
+                        l_pct  = f"{l['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
 
                     row_bg = "#1e2130" if i % 2 == 0 else "#16192b"
                     rows_html += f"""
                     <tr style="background:{row_bg};">
                       <td style="color:#00e676; font-weight:600; padding:2px 5px;">{g_code}</td>
-                      <td style="color:#aaa; font-size:11px; padding:2px 4px;">{g_cp}</td>
+                      <td style="color:#aaa; font-size:11px; padding:2px 4px; text-align:right;">{g_cp}</td>
                       <td style="color:#00e676; text-align:right; padding:2px 5px;">{g_inf}</td>
+                      <td style="color:#00e676; text-align:right; padding:2px 3px; font-size:10px;">{g_pct}</td>
                       <td style="color:#ff5252; font-weight:600; padding:2px 5px;">{l_code}</td>
-                      <td style="color:#aaa; font-size:11px; padding:2px 4px;">{l_cp}</td>
+                      <td style="color:#aaa; font-size:11px; padding:2px 4px; text-align:right;">{l_cp}</td>
                       <td style="color:#ff5252; text-align:right; padding:2px 5px;">{l_inf}</td>
+                      <td style="color:#ff5252; text-align:right; padding:2px 3px; font-size:10px;">{l_pct}</td>
                     </tr>"""
 
                 table_html = f"""
@@ -318,22 +336,24 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                   <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
                       <tr>
-                        <th colspan="3" style="background:#1b3a1b; color:#00e676;
+                        <th colspan="4" style="background:#1b3a1b; color:#00e676;
                                                text-align:center; padding:4px; font-size:11px;">
                           TOP TĂNG
                         </th>
-                        <th colspan="3" style="background:#3a1b1b; color:#ff5252;
+                        <th colspan="4" style="background:#3a1b1b; color:#ff5252;
                                                text-align:center; padding:4px; font-size:11px;">
                           TOP GIẢM
                         </th>
                       </tr>
                       <tr style="background:#1a1d2e;">
                         <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">%</th>
+                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;text-align:right;">Giá</th>
+                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
+                        <th style="color:#ccc;padding:2px 3px;font-size:10px;font-weight:500;text-align:right;">%</th>
                         <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">%</th>
+                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;text-align:right;">Giá</th>
+                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
+                        <th style="color:#ccc;padding:2px 3px;font-size:10px;font-weight:500;text-align:right;">%</th>
                       </tr>
                     </thead>
                     <tbody>{rows_html}</tbody>
