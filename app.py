@@ -212,11 +212,11 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
         return
 
     # ── Render bảng dạng grid như ảnh mẫu ──
-    # Group periods into rows of 4 columns
+    # Always create 4 columns per row so last card stays same width
     cols_per_row = 4
     for row_start in range(0, len(periods), cols_per_row):
         row_periods = periods[row_start: row_start + cols_per_row]
-        cols = st.columns(len(row_periods))
+        cols = st.columns(cols_per_row)  # always 4 cols, extras stay empty
 
         for col_idx, (col, period) in enumerate(zip(cols, row_periods)):
             period_number = row_start + col_idx + 1
@@ -307,27 +307,23 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                     if i < len(gainers):
                         g = gainers.iloc[i]
                         g_code = g["StockCode"]
-                        g_cp   = str(g["ClosePrice"]) if pd.notna(g["ClosePrice"]) else ""
                         g_inf  = f"{g['InfluenceIndex']:+.1f}"
                         g_pct  = f"{g['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
                     if i < len(losers):
                         l = losers.iloc[i]
                         l_code = l["StockCode"]
-                        l_cp   = str(l["ClosePrice"]) if pd.notna(l["ClosePrice"]) else ""
                         l_inf  = f"{l['InfluenceIndex']:+.1f}"
                         l_pct  = f"{l['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
 
                     row_bg = "#1e2130" if i % 2 == 0 else "#16192b"
                     rows_html += f"""
                     <tr style="background:{row_bg};">
-                      <td style="color:#00e676; font-weight:600; padding:2px 5px;">{g_code}</td>
-                      <td style="color:#aaa; font-size:11px; padding:2px 4px; text-align:right;">{g_cp}</td>
-                      <td style="color:#00e676; text-align:right; padding:2px 5px;">{g_inf}</td>
-                      <td style="color:#00e676; text-align:right; padding:2px 3px; font-size:10px;">{g_pct}</td>
-                      <td style="color:#ff5252; font-weight:600; padding:2px 5px;">{l_code}</td>
-                      <td style="color:#aaa; font-size:11px; padding:2px 4px; text-align:right;">{l_cp}</td>
-                      <td style="color:#ff5252; text-align:right; padding:2px 5px;">{l_inf}</td>
-                      <td style="color:#ff5252; text-align:right; padding:2px 3px; font-size:10px;">{l_pct}</td>
+                      <td style="color:#00e676; font-weight:600; padding:2px 6px;">{g_code}</td>
+                      <td style="color:#00e676; text-align:right; padding:2px 6px;">{g_inf}</td>
+                      <td style="color:#00e676; text-align:right; padding:2px 6px; font-size:11px;">{g_pct}</td>
+                      <td style="color:#ff5252; font-weight:600; padding:2px 6px;">{l_code}</td>
+                      <td style="color:#ff5252; text-align:right; padding:2px 6px;">{l_inf}</td>
+                      <td style="color:#ff5252; text-align:right; padding:2px 6px; font-size:11px;">{l_pct}</td>
                     </tr>"""
 
                 table_html = f"""
@@ -336,28 +332,28 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                   <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
                       <tr>
-                        <th colspan="4" style="background:#1b3a1b; color:#00e676;
+                        <th colspan="3" style="background:#1b3a1b; color:#00e676;
                                                text-align:center; padding:4px; font-size:11px;">
                           TOP TĂNG
                         </th>
-                        <th colspan="4" style="background:#3a1b1b; color:#ff5252;
+                        <th colspan="3" style="background:#3a1b1b; color:#ff5252;
                                                text-align:center; padding:4px; font-size:11px;">
                           TOP GIẢM
                         </th>
                       </tr>
                       <tr style="background:#1a1d2e;">
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;text-align:right;">Giá</th>
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 3px;font-size:10px;font-weight:500;text-align:right;">%</th>
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 4px;font-size:10px;font-weight:500;text-align:right;">Giá</th>
-                        <th style="color:#ccc;padding:2px 5px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 3px;font-size:10px;font-weight:500;text-align:right;">%</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;">CP</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">%</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;">CP</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
+                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">%</th>
                       </tr>
                     </thead>
                     <tbody>{rows_html}</tbody>
                   </table>
+                </div>
+                """
                 </div>
                 """
                 st.markdown(table_html, unsafe_allow_html=True)
@@ -705,10 +701,34 @@ def render_tab3(pc: pd.DataFrame, combined: pd.DataFrame):
     display_prob = display_prob.sort_values("P(Tăng|UP)%", ascending=False)
     display_prob = display_prob[display_prob[["Số đợt UP tăng","Số đợt DOWN giảm"]].max(axis=1) >= min_periods]
 
+    def color_up_pct(val):
+        try:
+            v = float(val)
+            intensity = min(int(v * 2.55), 200)
+            return f"background-color: rgba(0,{intensity},80,0.4); color: #00e676"
+        except:
+            return ""
+
+    def color_dn_pct(val):
+        try:
+            v = float(val)
+            intensity = min(int(v * 2.55), 200)
+            return f"background-color: rgba({intensity},0,50,0.4); color: #ff5252"
+        except:
+            return ""
+
+    def color_contribution(val):
+        try:
+            v = float(val)
+            return "color: #00e676" if v > 0 else "color: #ff5252"
+        except:
+            return ""
+
     st.dataframe(
         display_prob.style
-        .background_gradient(subset=["P(Tăng|UP)%"], cmap="Greens")
-        .background_gradient(subset=["P(Giảm|DOWN)%"], cmap="Reds")
+        .applymap(color_up_pct, subset=["P(Tăng|UP)%"])
+        .applymap(color_dn_pct, subset=["P(Giảm|DOWN)%"])
+        .applymap(color_contribution, subset=["Tổng đóng góp UP", "Tổng kéo giảm DOWN"])
         .format({
             "P(Tăng|UP)%": "{:.1f}%",
             "P(Giảm|DOWN)%": "{:.1f}%",
