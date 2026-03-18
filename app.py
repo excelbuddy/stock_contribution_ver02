@@ -218,7 +218,8 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
         row_periods = periods[row_start: row_start + cols_per_row]
         cols = st.columns(len(row_periods))
 
-        for col, period in zip(cols, row_periods):
+        for col_idx, (col, period) in enumerate(zip(cols, row_periods)):
+            period_number = row_start + col_idx + 1
             sd = period["Start Date"]
             ed = period["End Date"]
             ptype = period["Type"]
@@ -247,7 +248,7 @@ def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
                             padding:10px 12px; margin-bottom:0;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:11px; color:#ccc;">
-                      Đỉnh/Đáy {row_start//cols_per_row*cols_per_row + periods.index(period) + 1}
+                      Đỉnh/Đáy {period_number}
                     </span>
                     <span style="background:{badge_color}; color:white; font-weight:700;
                                  padding:2px 10px; border-radius:4px; font-size:12px;">
