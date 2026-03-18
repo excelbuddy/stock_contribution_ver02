@@ -97,7 +97,7 @@ def prep_c_new(c_new, pc):
         sd = period["Start Date"]
         ed = period["End Date"]
         # Strictly after StartDate, up to and including EndDate
-        mask = (df["Date"] > sd) & (df["Date"] <= ed)
+        mask = (df["Date"] >= sd) & (df["Date"] <= ed)  # >= matches GSheet: Col4 >= date StartDate
         sub  = df[mask].copy()
         if sub.empty:
             continue
