@@ -69,31 +69,56 @@ def prep_pc(pc):
     return df
 
 def prep_c_old(c_old):
+    # Contribution_old: pre-aggregated per period (Start Date, End Date, StockCode, InfluenceIndex)
+    # Type = Gainers if InfluenceIndex > 0, else Losers  [matches =IF(E>0,"Gainers","Losers")]
     df = c_old.copy()
-    df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce")
-    df["End Date"]   = pd.to_datetime(df["End Date"],   errors="coerce")
+    df["Start Date"]     = pd.to_datetime(df["Start Date"], errors="coerce")
+    df["End Date"]       = pd.to_datetime(df["End Date"],   errors="coerce")
     df["InfluenceIndex"] = pd.to_numeric(df["InfluenceIndex"], errors="coerce")
+    df["Type"] = df["InfluenceIndex"].apply(lambda x: "Gainers" if x > 0 else "Losers")
     return df
 
 def prep_c_new(c_new, pc):
+    # Sheet Contribution: daily rows. Google Sheet DB logic:
+    #   For each period (StartDate, EndDate):
+    #     Filter daily rows: Date > StartDate AND Date <= EndDate
+    #     SUMIF InfluenceIndex by StockCode  (= QUERY FILTER ... select Col3 Col5)
+    #     Gainers = summed rows with result > 0
+    #     Losers  = summed rows with result < 0
+    #   % column = InfluenceIndex / GAP_pts  where GAP_pts = VNI_End - VNI_Start
     df = c_new.copy()
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df["Date"]           = pd.to_datetime(df["Date"], errors="coerce")
     df["InfluenceIndex"] = df["InfluenceIndex"].apply(parse_influence)
+
     pc_calc = pc[pc["Contribution Data"].str.contains("Need to calculate", na=False)].copy()
+
     rows = []
     for _, period in pc_calc.iterrows():
-        mask = (df["Date"] > period["Start Date"]) & (df["Date"] <= period["End Date"])
+        sd = period["Start Date"]
+        ed = period["End Date"]
+        # Strictly after StartDate, up to and including EndDate
+        mask = (df["Date"] > sd) & (df["Date"] <= ed)
         sub  = df[mask].copy()
         if sub.empty:
             continue
-        agg = sub.groupby(["StockCode", "Type"])["InfluenceIndex"].sum().reset_index()
-        agg["Start Date"] = period["Start Date"]
-        agg["End Date"]   = period["End Date"]
+
+        # SUMIF InfluenceIndex by StockCode across all days in the period
+        agg = sub.groupby("StockCode")["InfluenceIndex"].sum().reset_index()
+
+        # Assign Type from sign of cumulative influence
+        agg["Type"] = agg["InfluenceIndex"].apply(lambda x: "Gainers" if x > 0 else "Losers")
+
+        agg["Start Date"] = sd
+        agg["End Date"]   = ed
+
+        # ClosePrice = last known price for each stock within the period
         last_price = (sub.sort_values("Date")
-                      .drop_duplicates("StockCode", keep="last")
-                      .set_index("StockCode")["ClosePrice"])
+                         .drop_duplicates("StockCode", keep="last")
+                         .set_index("StockCode")["ClosePrice"])
         agg["ClosePrice"] = agg["StockCode"].map(last_price)
+
         rows.append(agg)
+
     if rows:
         return pd.concat(rows, ignore_index=True)
     return pd.DataFrame(columns=["Start Date", "End Date", "StockCode", "ClosePrice", "InfluenceIndex", "Type"])
@@ -101,6 +126,8 @@ def prep_c_new(c_new, pc):
 def combine(c_old, c_new_agg):
     combined = pd.concat([c_old, c_new_agg], ignore_index=True)
     combined["InfluenceIndex"] = pd.to_numeric(combined["InfluenceIndex"], errors="coerce").fillna(0)
+    # Ensure Type matches sign (defensive — mirrors =IF(InfluenceIndex>0,"Gainers","Losers"))
+    combined["Type"] = combined["InfluenceIndex"].apply(lambda x: "Gainers" if x > 0 else "Losers")
     return combined
 
 # ── TAB 1 HELPERS ─────────────────────────────────────────────────────────────
