@@ -1,81 +1,37 @@
-"""
-VNIndex Contribution Dashboard
-Streamlit app - 3 tabs:
-  Tab 1: Bảng thống kê Contribution theo đợt (như ảnh mẫu)
-  Tab 2: Chart lịch sử VNIndex với đỉnh/đáy và mũi tên
-  Tab 3: Phân tích cổ phiếu đóng góp chính (Trading Insights)
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import io
 import requests
 
-# ─────────────────────────────────────────────
-# CONFIG
-# ─────────────────────────────────────────────
-st.set_page_config(
-    page_title="VNIndex Contribution Dashboard",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="VNIndex Contribution Dashboard", page_icon="📈", layout="wide", initial_sidebar_state="collapsed")
 
 SHEET_ID = "1vxAlLu79JEKN-q6R2-6zxFKC2BrsfrUJjOzbstpA2kc"
 
-# ─────────────────────────────────────────────
-# CSS
-# ─────────────────────────────────────────────
-st.markdown("""
-<style>
-  .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-  .stTabs [data-baseweb="tab"] {
-    font-weight: 600; font-size: 14px;
-    padding: 8px 20px; border-radius: 6px 6px 0 0;
-  }
-  .metric-box {
-    background: #1e2130; border-radius: 8px;
-    padding: 12px 16px; margin: 4px;
-  }
-  .up-color   { color: #00c853; }
-  .down-color { color: #ff1744; }
-  .neutral    { color: #90caf9; }
-  div[data-testid="stMetricValue"] { font-size: 1.4rem !important; }
-</style>
-""", unsafe_allow_html=True)
+st.markdown('<style>div[data-testid="stMetricValue"]{font-size:1.4rem!important}</style>', unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-# DATA LOADING
-# ─────────────────────────────────────────────
+# ── DATA LOADING ──────────────────────────────────────────────────────────────
+
 @st.cache_data(ttl=3600, show_spinner=False)
-def load_sheet(sheet_name: str) -> pd.DataFrame:
-    url = (
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-        f"/gviz/tq?tqx=out:csv&sheet={sheet_name}"
-    )
+def load_sheet(name):
+    url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&sheet=" + name
     r = requests.get(url, timeout=20)
     r.raise_for_status()
     return pd.read_csv(io.StringIO(r.text))
 
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_all():
-    with st.spinner("Đang tải dữ liệu từ Google Sheets…"):
+    with st.spinner("Dang tai du lieu..."):
         hist  = load_sheet("hose-history")
         pc    = load_sheet("hose-history-PC")
         c_old = load_sheet("Contribution_old")
         c_new = load_sheet("Contribution")
     return hist, pc, c_old, c_new
 
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────
 def parse_influence(val):
-    """Convert '(4.6)' or '4.6' → float"""
     if pd.isna(val):
         return 0.0
     s = str(val).strip()
@@ -89,10 +45,8 @@ def parse_influence(val):
     except:
         return 0.0
 
-
-def prep_history(hist: pd.DataFrame) -> pd.DataFrame:
+def prep_history(hist):
     df = hist.copy()
-    # Use col 0 (Correct Date) if parseable, else col 1
     df["Date"] = pd.to_datetime(df.iloc[:, 0], errors="coerce")
     mask = df["Date"].isna()
     df.loc[mask, "Date"] = pd.to_datetime(df.loc[mask, "Ngay"], dayfirst=True, errors="coerce")
@@ -100,294 +54,223 @@ def prep_history(hist: pd.DataFrame) -> pd.DataFrame:
     df["Close"] = pd.to_numeric(df["GiaDieuChinh"], errors="coerce")
     return df[["Date", "Close"]].dropna()
 
-
-def prep_pc(pc: pd.DataFrame) -> pd.DataFrame:
+def prep_pc(pc):
     df = pc.copy()
     df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce")
     df["End Date"]   = pd.to_datetime(df["End Date"],   errors="coerce")
-    df["Change_pct"] = (
-        df["Change %"]
-        .astype(str)
+    df["Change_pct"] = pd.to_numeric(
+        df["Change %"].astype(str)
         .str.replace("%", "", regex=False)
         .str.replace("+", "", regex=False)
-        .str.strip()
-    )
-    df["Change_pct"] = pd.to_numeric(df["Change_pct"], errors="coerce")
-    df["Days"]       = pd.to_numeric(df["Days"], errors="coerce")
-    df["has_data"]   = ~df["Contribution Data"].str.contains("Not available", na=True)
+        .str.strip(),
+        errors="coerce")
+    df["Days"]     = pd.to_numeric(df["Days"], errors="coerce")
+    df["has_data"] = ~df["Contribution Data"].str.contains("Not available", na=True)
     return df
 
-
-def prep_contribution_old(c_old: pd.DataFrame) -> pd.DataFrame:
+def prep_c_old(c_old):
     df = c_old.copy()
     df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce")
     df["End Date"]   = pd.to_datetime(df["End Date"],   errors="coerce")
     df["InfluenceIndex"] = pd.to_numeric(df["InfluenceIndex"], errors="coerce")
     return df
 
-
-def prep_contribution_new(c_new: pd.DataFrame, pc: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate daily contribution into per-period contribution matching hose-history-PC rows 97-100"""
+def prep_c_new(c_new, pc):
     df = c_new.copy()
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["InfluenceIndex"] = df["InfluenceIndex"].apply(parse_influence)
-
-    # Assign each date to a period from hose-history-PC
     pc_calc = pc[pc["Contribution Data"].str.contains("Need to calculate", na=False)].copy()
-
     rows = []
     for _, period in pc_calc.iterrows():
         mask = (df["Date"] > period["Start Date"]) & (df["Date"] <= period["End Date"])
-        sub = df[mask].copy()
+        sub  = df[mask].copy()
         if sub.empty:
             continue
-        agg = (
-            sub.groupby(["StockCode", "Type"])["InfluenceIndex"]
-            .sum()
-            .reset_index()
-        )
+        agg = sub.groupby(["StockCode", "Type"])["InfluenceIndex"].sum().reset_index()
         agg["Start Date"] = period["Start Date"]
         agg["End Date"]   = period["End Date"]
-        agg["ClosePrice"] = (
-            sub.sort_values("Date")
-            .drop_duplicates("StockCode", keep="last")
-            .set_index("StockCode")["ClosePrice"]
-        )
-        agg["ClosePrice"] = agg["StockCode"].map(
-            sub.sort_values("Date").drop_duplicates("StockCode", keep="last").set_index("StockCode")["ClosePrice"]
-        )
+        last_price = (sub.sort_values("Date")
+                      .drop_duplicates("StockCode", keep="last")
+                      .set_index("StockCode")["ClosePrice"])
+        agg["ClosePrice"] = agg["StockCode"].map(last_price)
         rows.append(agg)
-
     if rows:
         return pd.concat(rows, ignore_index=True)
-    return pd.DataFrame(columns=["Start Date","End Date","StockCode","ClosePrice","InfluenceIndex","Type"])
+    return pd.DataFrame(columns=["Start Date", "End Date", "StockCode", "ClosePrice", "InfluenceIndex", "Type"])
 
-
-def combine_contributions(c_old_prep, c_new_agg):
-    combined = pd.concat([c_old_prep, c_new_agg], ignore_index=True)
+def combine(c_old, c_new_agg):
+    combined = pd.concat([c_old, c_new_agg], ignore_index=True)
     combined["InfluenceIndex"] = pd.to_numeric(combined["InfluenceIndex"], errors="coerce").fillna(0)
     return combined
 
+# ── TAB 1 HELPERS ─────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
-# TAB 1 — BẢNG THỐNG KÊ (như ảnh mẫu)
-# ─────────────────────────────────────────────
-def render_tab1(pc: pd.DataFrame, combined: pd.DataFrame):
-    st.subheader("📊 Thống kê Contribution theo đợt tăng/giảm")
+def metric_box_html(label, value, color="white"):
+    return (
+        '<div style="flex:1;background:rgba(0,0,0,0.3);border-radius:4px;padding:3px 5px;text-align:center;">'
+        + '<div style="font-size:9px;color:#aaa;">' + label + '</div>'
+        + '<div style="font-weight:700;color:' + color + ';font-size:12px;">' + value + '</div>'
+        + '</div>'
+    )
+
+def build_header_html(period_number, ptype, sd, ed, days, vi_s, vi_e, gap_pts, chg):
+    color_header = "#1b5e20" if ptype == "UP" else "#7b1515"
+    badge_color  = "#00c853" if ptype == "UP" else "#ff1744"
+    gap_color    = "#00c853" if gap_pts >= 0 else "#ff1744"
+
+    parts = []
+    parts.append('<div style="background:' + color_header + ';border-radius:8px 8px 0 0;padding:10px 12px;">')
+    parts.append('<div style="display:flex;justify-content:space-between;align-items:center;">')
+    parts.append('<span style="font-size:11px;color:#ccc;">Dinh/Day ' + str(period_number) + '</span>')
+    parts.append('<span style="background:' + badge_color + ';color:white;font-weight:700;padding:2px 10px;border-radius:4px;font-size:12px;">' + ptype + '</span>')
+    parts.append('</div>')
+    parts.append('<div style="font-size:11px;color:#eee;margin-top:4px;">' + sd.strftime("%Y-%m-%d") + ' &rarr; ' + ed.strftime("%Y-%m-%d") + '</div>')
+    parts.append('<div style="display:flex;gap:5px;margin-top:6px;">')
+    parts.append(metric_box_html("So ngay GD", str(days)))
+    parts.append(metric_box_html("VNI Start", "{:,.0f}".format(vi_s)))
+    parts.append(metric_box_html("VNI End", "{:,.0f}".format(vi_e)))
+    parts.append(metric_box_html("GAP (diem)", "{:+.1f}".format(gap_pts), gap_color))
+    parts.append(metric_box_html("GAP (%)", "{:+.1f}%".format(chg), gap_color))
+    parts.append('</div></div>')
+    return "".join(parts)
+
+def build_table_html(gainers, losers, gap_pts):
+    parts = []
+    parts.append('<div style="background:#12151f;border-radius:0 0 8px 8px;overflow:hidden;margin-bottom:14px;">')
+    parts.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">')
+    parts.append('<thead>')
+    parts.append('<tr>')
+    parts.append('<th colspan="3" style="background:#1b3a1b;color:#00e676;text-align:center;padding:4px;font-size:11px;">TOP TANG</th>')
+    parts.append('<th colspan="3" style="background:#3a1b1b;color:#ff5252;text-align:center;padding:4px;font-size:11px;">TOP GIAM</th>')
+    parts.append('</tr>')
+    parts.append('<tr style="background:#1a1d2e;">')
+    for _ in range(2):
+        parts.append('<th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;">CP</th>')
+        parts.append('<th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">Dong gop</th>')
+        parts.append('<th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">%</th>')
+    parts.append('</tr>')
+    parts.append('</thead><tbody>')
+
+    max_rows = max(len(gainers), len(losers))
+    for i in range(max_rows):
+        g_code = g_inf = g_pct = ""
+        l_code = l_inf = l_pct = ""
+        if i < len(gainers):
+            g = gainers.iloc[i]
+            g_code = str(g["StockCode"])
+            g_inf  = "{:+.1f}".format(g["InfluenceIndex"])
+            g_pct  = "{:.1f}%".format(g["InfluenceIndex"] / gap_pts * 100) if gap_pts else ""
+        if i < len(losers):
+            l = losers.iloc[i]
+            l_code = str(l["StockCode"])
+            l_inf  = "{:+.1f}".format(l["InfluenceIndex"])
+            l_pct  = "{:.1f}%".format(l["InfluenceIndex"] / gap_pts * 100) if gap_pts else ""
+
+        row_bg = "#1e2130" if i % 2 == 0 else "#16192b"
+        parts.append('<tr style="background:' + row_bg + ';">')
+        parts.append('<td style="color:#00e676;font-weight:600;padding:2px 6px;">'                    + g_code + '</td>')
+        parts.append('<td style="color:#00e676;text-align:right;padding:2px 6px;">'                   + g_inf  + '</td>')
+        parts.append('<td style="color:#00e676;text-align:right;padding:2px 6px;font-size:11px;">'    + g_pct  + '</td>')
+        parts.append('<td style="color:#ff5252;font-weight:600;padding:2px 6px;">'                    + l_code + '</td>')
+        parts.append('<td style="color:#ff5252;text-align:right;padding:2px 6px;">'                   + l_inf  + '</td>')
+        parts.append('<td style="color:#ff5252;text-align:right;padding:2px 6px;font-size:11px;">'    + l_pct  + '</td>')
+        parts.append('</tr>')
+
+    parts.append('</tbody></table></div>')
+    return "".join(parts)
+
+# ── TAB 1 ─────────────────────────────────────────────────────────────────────
+
+def render_tab1(pc, combined):
+    st.subheader("Thong ke Contribution theo dot tang/giam")
 
     pc_with_data = pc[pc["has_data"]].reset_index(drop=True)
-
     if pc_with_data.empty:
-        st.info("Chưa có dữ liệu contribution.")
+        st.info("Chua co du lieu contribution.")
         return
 
-    # Sidebar filters
-    col_f1, col_f2, col_f3 = st.columns([2, 2, 2])
+    col_f1, col_f2, col_f3 = st.columns([2, 2, 3])
     with col_f1:
-        type_filter = st.selectbox("Loại đợt", ["Tất cả", "UP", "DOWN"])
+        type_filter = st.selectbox("Loai dot", ["Tat ca", "UP", "DOWN"])
     with col_f2:
-        top_n = st.slider("Top N cổ phiếu mỗi đợt", 5, 30, 15)
+        top_n = st.slider("Top N co phieu moi dot", 5, 30, 15)
     with col_f3:
-        selected_periods = st.multiselect(
-            "Chọn đợt (để trống = tất cả)",
-            options=[
-                f"{r['Type']} {r['Start Date'].strftime('%Y-%m-%d')} → {r['End Date'].strftime('%Y-%m-%d')} ({r['Change_pct']:+.1f}%)"
-                for _, r in pc_with_data.iterrows()
-            ],
-        )
+        period_labels = [
+            r["Type"] + " " + r["Start Date"].strftime("%Y-%m-%d") + " -> "
+            + r["End Date"].strftime("%Y-%m-%d") + " ("
+            + "{:+.1f}%".format(r["Change_pct"]) + ")"
+            for _, r in pc_with_data.iterrows()
+        ]
+        selected_periods = st.multiselect("Chon dot (de trong = tat ca)", options=period_labels)
 
-    if type_filter != "Tất cả":
+    if type_filter != "Tat ca":
         pc_with_data = pc_with_data[pc_with_data["Type"] == type_filter]
 
-    # Build period list
     periods = []
     for _, row in pc_with_data.iterrows():
-        label = f"{row['Type']} {row['Start Date'].strftime('%Y-%m-%d')} → {row['End Date'].strftime('%Y-%m-%d')} ({row['Change_pct']:+.1f}%)"
+        label = (row["Type"] + " " + row["Start Date"].strftime("%Y-%m-%d")
+                 + " -> " + row["End Date"].strftime("%Y-%m-%d")
+                 + " (" + "{:+.1f}%".format(row["Change_pct"]) + ")")
         if selected_periods and label not in selected_periods:
             continue
         periods.append(row)
 
     if not periods:
-        st.warning("Không có đợt nào phù hợp.")
+        st.warning("Khong co dot nao phu hop.")
         return
 
-    # ── Render bảng dạng grid như ảnh mẫu ──
-    # Always create 4 columns per row so last card stays same width
     cols_per_row = 4
     for row_start in range(0, len(periods), cols_per_row):
         row_periods = periods[row_start: row_start + cols_per_row]
-        cols = st.columns(cols_per_row)  # always 4 cols, extras stay empty
+        cols = st.columns(cols_per_row)
 
-        for col_idx, (col, period) in enumerate(zip(cols, row_periods)):
-            period_number = row_start + col_idx + 1
-            sd = period["Start Date"]
-            ed = period["End Date"]
+        for col_idx, period in enumerate(row_periods):
+            sd    = period["Start Date"]
+            ed    = period["End Date"]
             ptype = period["Type"]
             chg   = period["Change_pct"]
             days  = int(period["Days"])
             vi_s  = period["VNIndex-Start"]
             vi_e  = period["VNIndex-End"]
+            gap_pts      = vi_e - vi_s
+            period_number = row_start + col_idx + 1
 
-            # Get contribution data for this period
-            mask = (
-                (combined["Start Date"] == sd) &
-                (combined["End Date"]   == ed)
-            )
+            mask = (combined["Start Date"] == sd) & (combined["End Date"] == ed)
             df_p = combined[mask].copy()
 
             gainers = df_p[df_p["Type"] == "Gainers"].nlargest(top_n, "InfluenceIndex")
             losers  = df_p[df_p["Type"] == "Losers"].nsmallest(top_n, "InfluenceIndex")
 
-            color_header = "#1b5e20" if ptype == "UP" else "#b71c1c"
-            badge_color  = "#00c853" if ptype == "UP" else "#ff1744"
-
-            with col:
-                # Pre-compute % contribution correctly:
-                # % = InfluenceIndex / sum of ALL |InfluenceIndex| in this period * 100
-                total_abs = df_p["InfluenceIndex"].abs().sum() if not df_p.empty else 0
-
-                gap_pts = vi_e - vi_s  # GAP in points
-
-                # Header card — 2 rows of metrics: row1: Số ngày GD / VNI Start / VNI End
-                #                                   row2: GAP (điểm) / GAP (%) badge
-                st.markdown(f"""
-                <div style="background:{color_header}; border-radius:8px 8px 0 0;
-                            padding:10px 12px; margin-bottom:0;">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:11px; color:#ccc;">Đỉnh/Đáy {period_number}</span>
-                    <span style="background:{badge_color}; color:white; font-weight:700;
-                                 padding:2px 10px; border-radius:4px; font-size:12px;">
-                      {ptype}
-                    </span>
-                  </div>
-                  <div style="font-size:11px; color:#eee; margin-top:4px;">
-                    {sd.strftime('%Y-%m-%d')} → {ed.strftime('%Y-%m-%d')}
-                  </div>
-                  <div style="display:flex; gap:6px; margin-top:6px;">
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
-                      <div style="font-size:9px; color:#aaa;">Số ngày GD</div>
-                      <div style="font-weight:700; color:white; font-size:13px;">{days}</div>
-                    </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
-                      <div style="font-size:9px; color:#aaa;">VNI Start</div>
-                      <div style="font-weight:700; color:white; font-size:13px;">{vi_s:,.0f}</div>
-                    </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
-                      <div style="font-size:9px; color:#aaa;">VNI End</div>
-                      <div style="font-weight:700; color:white; font-size:13px;">{vi_e:,.0f}</div>
-                    </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
-                      <div style="font-size:9px; color:#aaa;">GAP (điểm)</div>
-                      <div style="font-weight:700; color:{badge_color}; font-size:13px;">{gap_pts:+.1f}</div>
-                    </div>
-                    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:4px; padding:4px 6px; text-align:center;">
-                      <div style="font-size:9px; color:#aaa;">GAP (%)</div>
-                      <div style="font-weight:700; color:{badge_color}; font-size:13px;">{chg:+.1f}%</div>
-                    </div>
-                  </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Sub-table: TOP TĂNG + TOP GIẢM
+            with cols[col_idx]:
+                st.markdown(build_header_html(period_number, ptype, sd, ed, days, vi_s, vi_e, gap_pts, chg), unsafe_allow_html=True)
                 if df_p.empty:
-                    st.markdown(
-                        '<div style="background:#1e2130;padding:8px;border-radius:0 0 8px 8px;">'
-                        '<i style="color:#888;">Chưa có dữ liệu</i></div>',
-                        unsafe_allow_html=True
-                    )
-                    continue
+                    st.markdown('<div style="background:#1e2130;padding:8px;border-radius:0 0 8px 8px;margin-bottom:14px;"><i style="color:#888;">Chua co du lieu</i></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(build_table_html(gainers, losers, gap_pts), unsafe_allow_html=True)
 
-                # Build HTML table rows
-                # % = InfluenceIndex / total_abs_all * 100  (correct logic per user)
-                rows_html = ""
-                max_rows = max(len(gainers), len(losers))
-                for i in range(max_rows):
-                    g_cp = g_inf = g_pct = g_code = ""
-                    l_cp = l_inf = l_pct = l_code = ""
-                    if i < len(gainers):
-                        g = gainers.iloc[i]
-                        g_code = g["StockCode"]
-                        g_inf  = f"{g['InfluenceIndex']:+.1f}"
-                        g_pct  = f"{g['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
-                    if i < len(losers):
-                        l = losers.iloc[i]
-                        l_code = l["StockCode"]
-                        l_inf  = f"{l['InfluenceIndex']:+.1f}"
-                        l_pct  = f"{l['InfluenceIndex'] / gap_pts * 100:.1f}%" if gap_pts else ""
+# ── TAB 2 ─────────────────────────────────────────────────────────────────────
 
-                    row_bg = "#1e2130" if i % 2 == 0 else "#16192b"
-                    rows_html += f"""
-                    <tr style="background:{row_bg};">
-                      <td style="color:#00e676; font-weight:600; padding:2px 6px;">{g_code}</td>
-                      <td style="color:#00e676; text-align:right; padding:2px 6px;">{g_inf}</td>
-                      <td style="color:#00e676; text-align:right; padding:2px 6px; font-size:11px;">{g_pct}</td>
-                      <td style="color:#ff5252; font-weight:600; padding:2px 6px;">{l_code}</td>
-                      <td style="color:#ff5252; text-align:right; padding:2px 6px;">{l_inf}</td>
-                      <td style="color:#ff5252; text-align:right; padding:2px 6px; font-size:11px;">{l_pct}</td>
-                    </tr>"""
-
-                table_html = f"""
-                <div style="background:#12151f; border-radius:0 0 8px 8px;
-                            overflow:hidden; margin-bottom:16px;">
-                  <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead>
-                      <tr>
-                        <th colspan="3" style="background:#1b3a1b; color:#00e676;
-                                               text-align:center; padding:4px; font-size:11px;">
-                          TOP TĂNG
-                        </th>
-                        <th colspan="3" style="background:#3a1b1b; color:#ff5252;
-                                               text-align:center; padding:4px; font-size:11px;">
-                          TOP GIẢM
-                        </th>
-                      </tr>
-                      <tr style="background:#1a1d2e;">
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">%</th>
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;">CP</th>
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">Đóng góp</th>
-                        <th style="color:#ccc;padding:2px 6px;font-size:10px;font-weight:500;text-align:right;">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>{rows_html}</tbody>
-                  </table>
-                </div>
-                """
-                </div>
-                """
-                st.markdown(table_html, unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────
-# TAB 2 — CHART LỊCH SỬ VNINDEX
-# ─────────────────────────────────────────────
-def render_tab2(hist_df: pd.DataFrame, pc: pd.DataFrame):
-    st.subheader("📈 Lịch sử VNIndex với đỉnh/đáy")
+def render_tab2(hist_df, pc):
+    st.subheader("Lich su VNIndex voi dinh/day")
 
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        year_from = st.number_input("Từ năm", min_value=2000, max_value=2026, value=2015, step=1)
+        year_from = st.number_input("Tu nam", min_value=2000, max_value=2026, value=2015, step=1)
     with c2:
-        year_to = st.number_input("Đến năm", min_value=2000, max_value=2026, value=2026, step=1)
+        year_to = st.number_input("Den nam", min_value=2000, max_value=2026, value=2026, step=1)
     with c3:
-        show_annotations = st.checkbox("Hiện mũi tên & chú thích", value=True)
+        show_annotations = st.checkbox("Hien mui ten & chu thich", value=True)
 
-    df = hist_df[(hist_df["Date"].dt.year >= year_from) & (hist_df["Date"].dt.year <= year_to)]
+    df   = hist_df[(hist_df["Date"].dt.year >= year_from) & (hist_df["Date"].dt.year <= year_to)]
     pc_f = pc[(pc["Start Date"].dt.year >= year_from) | (pc["End Date"].dt.year <= year_to + 1)]
 
     fig = go.Figure()
-
-    # Main line chart
     fig.add_trace(go.Scatter(
-        x=df["Date"], y=df["Close"],
-        mode="lines",
-        line=dict(color="#4fc3f7", width=1.5),
-        name="VNIndex",
+        x=df["Date"], y=df["Close"], mode="lines",
+        line=dict(color="#4fc3f7", width=1.5), name="VNIndex",
         hovertemplate="<b>%{x|%d/%m/%Y}</b><br>VNIndex: %{y:,.2f}<extra></extra>",
     ))
 
-    # Peaks (UP end = local top) and Troughs (DOWN end = local bottom)
     peak_dates, peak_vals, trough_dates, trough_vals = [], [], [], []
     for _, row in pc_f.iterrows():
         if row["Type"] == "UP":
@@ -398,34 +281,23 @@ def render_tab2(hist_df: pd.DataFrame, pc: pd.DataFrame):
             trough_vals.append(row["VNIndex-End"])
 
     fig.add_trace(go.Scatter(
-        x=peak_dates, y=peak_vals,
-        mode="markers",
-        marker=dict(color="#ff1744", size=10, symbol="triangle-up",
-                    line=dict(color="white", width=1)),
-        name="Đỉnh",
-        hovertemplate="<b>Đỉnh %{x|%d/%m/%Y}</b><br>%{y:,.2f}<extra></extra>",
+        x=peak_dates, y=peak_vals, mode="markers",
+        marker=dict(color="#ff1744", size=10, symbol="triangle-up", line=dict(color="white", width=1)),
+        name="Dinh",
+        hovertemplate="<b>Dinh %{x|%d/%m/%Y}</b><br>%{y:,.2f}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
-        x=trough_dates, y=trough_vals,
-        mode="markers",
-        marker=dict(color="#00e676", size=10, symbol="triangle-down",
-                    line=dict(color="white", width=1)),
-        name="Đáy",
-        hovertemplate="<b>Đáy %{x|%d/%m/%Y}</b><br>%{y:,.2f}<extra></extra>",
+        x=trough_dates, y=trough_vals, mode="markers",
+        marker=dict(color="#00e676", size=10, symbol="triangle-down", line=dict(color="white", width=1)),
+        name="Day",
+        hovertemplate="<b>Day %{x|%d/%m/%Y}</b><br>%{y:,.2f}<extra></extra>",
     ))
 
-    # Arrows between consecutive peak/trough points
     if show_annotations:
-        all_pts = []
-        for _, row in pc_f.iterrows():
-            all_pts.append({
-                "date": row["End Date"],
-                "val": row["VNIndex-End"],
-                "type": row["Type"],
-                "chg": row["Change_pct"],
-                "days": row["Days"],
-            })
-        all_pts.sort(key=lambda x: x["date"])
+        all_pts = sorted([
+            {"date": row["End Date"], "val": row["VNIndex-End"], "chg": row["Change_pct"], "days": row["Days"]}
+            for _, row in pc_f.iterrows()
+        ], key=lambda x: x["date"])
 
         for i in range(len(all_pts) - 1):
             p0, p1 = all_pts[i], all_pts[i + 1]
@@ -433,222 +305,161 @@ def render_tab2(hist_df: pd.DataFrame, pc: pd.DataFrame):
                 continue
             is_up = p1["val"] > p0["val"]
             arr_color = "#00e676" if is_up else "#ff5252"
-            label = f"{p1['chg']:+.1f}%\n{int(p1['days'])}ngày"
             fig.add_annotation(
-                x=p1["date"], y=p1["val"],
-                ax=p0["date"], ay=p0["val"],
+                x=p1["date"], y=p1["val"], ax=p0["date"], ay=p0["val"],
                 xref="x", yref="y", axref="x", ayref="y",
-                showarrow=True,
-                arrowhead=2, arrowsize=1.2, arrowwidth=1.5,
+                showarrow=True, arrowhead=2, arrowsize=1.2, arrowwidth=1.5,
                 arrowcolor=arr_color,
-                text=label,
+                text="{:+.1f}%<br>{}ng".format(p1["chg"], int(p1["days"])),
                 font=dict(size=9, color=arr_color),
-                bgcolor="rgba(0,0,0,0.6)",
-                borderpad=2,
+                bgcolor="rgba(0,0,0,0.6)", borderpad=2,
             )
 
     fig.update_layout(
-        template="plotly_dark",
-        height=650,
+        template="plotly_dark", height=650,
         margin=dict(l=60, r=40, t=40, b=40),
-        xaxis=dict(
-            title="Ngày",
-            rangeslider=dict(visible=True, thickness=0.04),
-            type="date",
-        ),
+        xaxis=dict(title="Ngay", rangeslider=dict(visible=True, thickness=0.04), type="date"),
         yaxis=dict(title="VNIndex", tickformat=",.0f"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         hovermode="x unified",
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
-    # Summary table below chart
-    st.markdown("#### Bảng các đợt tăng/giảm")
-    display_pc = pc_f[["Start Date","End Date","Type","VNIndex-Start","VNIndex-End","Change %","Days","Contribution Data"]].copy()
-    display_pc["Start Date"] = display_pc["Start Date"].dt.strftime("%Y-%m-%d")
-    display_pc["End Date"]   = display_pc["End Date"].dt.strftime("%Y-%m-%d")
+    st.markdown("#### Bang cac dot tang/giam")
+    disp = pc_f[["Start Date", "End Date", "Type", "VNIndex-Start", "VNIndex-End", "Change %", "Days", "Contribution Data"]].copy()
+    disp["Start Date"] = disp["Start Date"].dt.strftime("%Y-%m-%d")
+    disp["End Date"]   = disp["End Date"].dt.strftime("%Y-%m-%d")
 
     def color_type(val):
         if val == "UP":
-            return "background-color: #1b3a1b; color: #00e676; font-weight:bold"
-        else:
-            return "background-color: #3a1b1b; color: #ff5252; font-weight:bold"
+            return "background-color:#1b3a1b;color:#00e676;font-weight:bold"
+        return "background-color:#3a1b1b;color:#ff5252;font-weight:bold"
 
     def color_chg(val):
         try:
-            v = float(str(val).replace("%","").replace("+","").strip())
-            return f"color: {'#00e676' if v > 0 else '#ff5252'}; font-weight:bold"
+            v = float(str(val).replace("%", "").replace("+", "").strip())
+            return "color:#00e676;font-weight:bold" if v > 0 else "color:#ff5252;font-weight:bold"
         except:
             return ""
 
-    styled = (
-        display_pc.style
-        .applymap(color_type, subset=["Type"])
-        .applymap(color_chg, subset=["Change %"])
-        .set_properties(**{"font-size": "12px"})
+    st.dataframe(
+        disp.style.applymap(color_type, subset=["Type"]).applymap(color_chg, subset=["Change %"]),
+        use_container_width=True, height=300,
     )
-    st.dataframe(styled, use_container_width=True, height=300)
 
+# ── TAB 3 ─────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
-# TAB 3 — INSIGHTS
-# ─────────────────────────────────────────────
-def render_tab3(pc: pd.DataFrame, combined: pd.DataFrame):
-    st.subheader("🔍 Phân tích cổ phiếu đóng góp chính theo xu hướng")
+def render_tab3(pc, combined):
+    st.subheader("Phan tich co phieu dong gop chinh theo xu huong")
 
     pc_with_data = pc[pc["has_data"]].reset_index(drop=True)
     if pc_with_data.empty or combined.empty:
-        st.info("Chưa đủ dữ liệu để phân tích.")
+        st.info("Chua du du lieu.")
         return
 
-    # ── Filter ──
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        trend_filter = st.selectbox("Xu hướng phân tích", ["Tất cả", "UP", "DOWN"])
+        trend_filter = st.selectbox("Xu huong", ["Tat ca", "UP", "DOWN"])
     with c2:
-        top_stocks = st.slider("Số cổ phiếu hiển thị", 10, 50, 20)
+        top_stocks = st.slider("So co phieu hien thi", 10, 50, 20)
     with c3:
-        min_periods = st.slider("Xuất hiện tối thiểu (đợt)", 1, 10, 2)
+        min_periods = st.slider("Xuat hien toi thieu (dot)", 1, 10, 2)
 
-    # Join PC periods with contribution
     merged_rows = []
     for _, p in pc_with_data.iterrows():
         mask = (combined["Start Date"] == p["Start Date"]) & (combined["End Date"] == p["End Date"])
-        sub = combined[mask].copy()
+        sub  = combined[mask].copy()
         sub["period_type"] = p["Type"]
         sub["period_chg"]  = p["Change_pct"]
         merged_rows.append(sub)
 
     if not merged_rows:
-        st.warning("Không khớp dữ liệu.")
+        st.warning("Khong khop du lieu.")
         return
 
     all_data = pd.concat(merged_rows, ignore_index=True)
-
-    if trend_filter != "Tất cả":
+    if trend_filter != "Tat ca":
         all_data = all_data[all_data["period_type"] == trend_filter]
 
-    # ── Aggregate: per stock across periods ──
     gainers_data = all_data[all_data["Type"] == "Gainers"]
     losers_data  = all_data[all_data["Type"] == "Losers"]
 
-    def aggregate_stock(df, top_n, min_p):
-        agg = df.groupby("StockCode").agg(
-            total_influence=("InfluenceIndex", "sum"),
-            appearances=("InfluenceIndex", "count"),
-            avg_influence=("InfluenceIndex", "mean"),
-        ).reset_index()
-        agg = agg[agg["appearances"] >= min_p]
-        agg = agg.nlargest(top_n, "total_influence") if df["InfluenceIndex"].iloc[0] > 0 else agg.nsmallest(top_n, "total_influence")
-        return agg
-
-    # Safe aggregation
-    if not gainers_data.empty and gainers_data["InfluenceIndex"].notna().any():
-        g_agg = gainers_data.groupby("StockCode").agg(
-            total_influence=("InfluenceIndex","sum"),
-            appearances=("InfluenceIndex","count"),
-            avg_influence=("InfluenceIndex","mean"),
-        ).reset_index()
-        g_agg = g_agg[g_agg["appearances"] >= min_periods]
-        g_agg = g_agg.nlargest(top_stocks, "total_influence")
-    else:
-        g_agg = pd.DataFrame()
-
-    if not losers_data.empty and losers_data["InfluenceIndex"].notna().any():
-        l_agg = losers_data.groupby("StockCode").agg(
-            total_influence=("InfluenceIndex","sum"),
-            appearances=("InfluenceIndex","count"),
-            avg_influence=("InfluenceIndex","mean"),
-        ).reset_index()
-        l_agg = l_agg[l_agg["appearances"] >= min_periods]
-        l_agg = l_agg.nsmallest(top_stocks, "total_influence")
-    else:
-        l_agg = pd.DataFrame()
-
-    # ── Charts ──
     col_a, col_b = st.columns(2)
 
     with col_a:
-        st.markdown("#### 🟢 Cổ phiếu đóng góp tăng nhiều nhất")
-        if not g_agg.empty:
+        st.markdown("#### Co phieu dong gop tang nhieu nhat")
+        if not gainers_data.empty:
+            g_agg = (gainers_data.groupby("StockCode")
+                     .agg(total=("InfluenceIndex", "sum"),
+                          count=("InfluenceIndex", "count"),
+                          avg=("InfluenceIndex", "mean"))
+                     .reset_index())
+            g_agg = g_agg[g_agg["count"] >= min_periods].nlargest(top_stocks, "total")
             fig_g = go.Figure(go.Bar(
-                x=g_agg["total_influence"],
-                y=g_agg["StockCode"],
-                orientation="h",
+                x=g_agg["total"], y=g_agg["StockCode"], orientation="h",
                 marker_color="#00c853",
-                customdata=np.stack([g_agg["appearances"], g_agg["avg_influence"]], axis=-1),
-                hovertemplate="<b>%{y}</b><br>Tổng: %{x:.1f}<br>Số đợt: %{customdata[0]}<br>TB/đợt: %{customdata[1]:.2f}<extra></extra>",
+                customdata=np.stack([g_agg["count"], g_agg["avg"]], axis=-1),
+                hovertemplate="<b>%{y}</b><br>Tong: %{x:.1f}<br>So dot: %{customdata[0]}<br>TB/dot: %{customdata[1]:.2f}<extra></extra>",
             ))
             fig_g.update_layout(
                 template="plotly_dark", height=550,
-                margin=dict(l=20,r=20,t=20,b=20),
-                xaxis_title="Tổng điểm đóng góp",
+                margin=dict(l=20, r=20, t=20, b=20),
+                xaxis_title="Tong diem dong gop",
                 yaxis=dict(autorange="reversed"),
             )
             st.plotly_chart(fig_g, use_container_width=True)
-        else:
-            st.info("Không có dữ liệu.")
 
     with col_b:
-        st.markdown("#### 🔴 Cổ phiếu kéo giảm nhiều nhất")
-        if not l_agg.empty:
+        st.markdown("#### Co phieu keo giam nhieu nhat")
+        if not losers_data.empty:
+            l_agg = (losers_data.groupby("StockCode")
+                     .agg(total=("InfluenceIndex", "sum"),
+                          count=("InfluenceIndex", "count"),
+                          avg=("InfluenceIndex", "mean"))
+                     .reset_index())
+            l_agg = l_agg[l_agg["count"] >= min_periods].nsmallest(top_stocks, "total")
             fig_l = go.Figure(go.Bar(
-                x=l_agg["total_influence"].abs(),
-                y=l_agg["StockCode"],
-                orientation="h",
+                x=l_agg["total"].abs(), y=l_agg["StockCode"], orientation="h",
                 marker_color="#ff1744",
-                customdata=np.stack([l_agg["appearances"], l_agg["avg_influence"].abs()], axis=-1),
-                hovertemplate="<b>%{y}</b><br>Tổng: -%{x:.1f}<br>Số đợt: %{customdata[0]}<br>TB/đợt: %{customdata[1]:.2f}<extra></extra>",
+                customdata=np.stack([l_agg["count"], l_agg["avg"].abs()], axis=-1),
+                hovertemplate="<b>%{y}</b><br>Tong: -%{x:.1f}<br>So dot: %{customdata[0]}<br>TB/dot: %{customdata[1]:.2f}<extra></extra>",
             ))
             fig_l.update_layout(
                 template="plotly_dark", height=550,
-                margin=dict(l=20,r=20,t=20,b=20),
-                xaxis_title="Tổng điểm kéo giảm",
+                margin=dict(l=20, r=20, t=20, b=20),
+                xaxis_title="Tong diem keo giam",
                 yaxis=dict(autorange="reversed"),
             )
             st.plotly_chart(fig_l, use_container_width=True)
-        else:
-            st.info("Không có dữ liệu.")
 
-    # ── Heatmap: Stock x Period ──
     st.markdown("---")
-    st.markdown("#### 🗺️ Heatmap: Đóng góp của từng cổ phiếu qua các đợt")
+    st.markdown("#### Heatmap: Dong gop cua tung co phieu qua cac dot")
 
-    # Build pivot: stock vs period label
     all_data["period_label"] = (
-        all_data["period_type"] + " " +
-        all_data["Start Date"].dt.strftime("%y/%m") + "→" +
-        all_data["End Date"].dt.strftime("%y/%m")
+        all_data["period_type"] + " "
+        + all_data["Start Date"].dt.strftime("%y/%m") + "->"
+        + all_data["End Date"].dt.strftime("%y/%m")
     )
-
-    # Top stocks by absolute total influence
-    top_s = (
-        all_data.groupby("StockCode")["InfluenceIndex"].apply(lambda x: x.abs().sum())
-        .nlargest(top_stocks).index.tolist()
-    )
+    top_s = (all_data.groupby("StockCode")["InfluenceIndex"]
+             .apply(lambda x: x.abs().sum())
+             .nlargest(top_stocks).index.tolist())
     heat_data = all_data[all_data["StockCode"].isin(top_s)]
     pivot = heat_data.pivot_table(
         index="StockCode", columns="period_label",
-        values="InfluenceIndex", aggfunc="sum", fill_value=0
+        values="InfluenceIndex", aggfunc="sum", fill_value=0,
     )
-
     if not pivot.empty:
         fig_h = go.Figure(go.Heatmap(
             z=pivot.values,
             x=pivot.columns.tolist(),
             y=pivot.index.tolist(),
-            colorscale=[
-                [0.0, "#b71c1c"], [0.4, "#880e4f"],
-                [0.5, "#1a1a2e"],
-                [0.6, "#1b5e20"], [1.0, "#00e676"],
-            ],
+            colorscale=[[0.0, "#b71c1c"], [0.4, "#880e4f"], [0.5, "#1a1a2e"], [0.6, "#1b5e20"], [1.0, "#00e676"]],
             zmid=0,
             text=np.round(pivot.values, 1),
             texttemplate="%{text}",
             textfont=dict(size=9),
-            hovertemplate="<b>%{y}</b> | %{x}<br>Điểm: %{z:.2f}<extra></extra>",
-            colorbar=dict(title="Điểm"),
+            hovertemplate="<b>%{y}</b> | %{x}<br>Diem: %{z:.2f}<extra></extra>",
+            colorbar=dict(title="Diem"),
         ))
         fig_h.update_layout(
             template="plotly_dark",
@@ -659,135 +470,106 @@ def render_tab3(pc: pd.DataFrame, combined: pd.DataFrame):
         )
         st.plotly_chart(fig_h, use_container_width=True)
 
-    # ── Probability table ──
     st.markdown("---")
-    st.markdown("#### 🎯 Xác suất xuất hiện trong đợt UP / DOWN")
+    st.markdown("#### Xac suat xuat hien trong dot UP / DOWN")
 
     n_up   = len(pc_with_data[pc_with_data["Type"] == "UP"])
     n_down = len(pc_with_data[pc_with_data["Type"] == "DOWN"])
 
-    up_app = (
-        all_data[(all_data["period_type"]=="UP") & (all_data["InfluenceIndex"] > 0)]
-        .groupby("StockCode")["InfluenceIndex"].agg(["count","sum","mean"])
-        .rename(columns={"count":"up_count","sum":"up_total","mean":"up_avg"})
-    )
-    dn_app = (
-        all_data[(all_data["period_type"]=="DOWN") & (all_data["InfluenceIndex"] < 0)]
-        .groupby("StockCode")["InfluenceIndex"].agg(["count","sum","mean"])
-        .rename(columns={"count":"dn_count","sum":"dn_total","mean":"dn_avg"})
-    )
+    up_app = (all_data[(all_data["period_type"] == "UP") & (all_data["InfluenceIndex"] > 0)]
+              .groupby("StockCode")["InfluenceIndex"]
+              .agg(["count", "sum", "mean"])
+              .rename(columns={"count": "up_count", "sum": "up_total", "mean": "up_avg"}))
+    dn_app = (all_data[(all_data["period_type"] == "DOWN") & (all_data["InfluenceIndex"] < 0)]
+              .groupby("StockCode")["InfluenceIndex"]
+              .agg(["count", "sum", "mean"])
+              .rename(columns={"count": "dn_count", "sum": "dn_total", "mean": "dn_avg"}))
 
     prob = pd.concat([up_app, dn_app], axis=1).fillna(0)
     prob["up_count"] = prob["up_count"].astype(int)
     prob["dn_count"] = prob["dn_count"].astype(int)
-    if n_up > 0:
-        prob["P(Tăng|UP)%"]  = (prob["up_count"] / n_up * 100).round(1)
-    else:
-        prob["P(Tăng|UP)%"] = 0
-    if n_down > 0:
-        prob["P(Giảm|DOWN)%"] = (prob["dn_count"] / n_down * 100).round(1)
-    else:
-        prob["P(Giảm|DOWN)%"] = 0
+    prob["P_UP"] = (prob["up_count"] / n_up   * 100).round(1) if n_up   > 0 else 0.0
+    prob["P_DN"] = (prob["dn_count"] / n_down * 100).round(1) if n_down > 0 else 0.0
 
-    prob["Vai trò UP (tổng đóng góp)"] = prob["up_total"].round(1)
-    prob["Vai trò DOWN (tổng kéo giảm)"] = prob["dn_total"].round(1)
+    disp_prob = prob[["up_count", "P_UP", "up_total", "dn_count", "P_DN", "dn_total"]].copy()
+    disp_prob.columns = ["So dot UP tang", "P(Tang|UP)%", "Tong dong gop UP",
+                         "So dot DOWN giam", "P(Giam|DOWN)%", "Tong keo giam DOWN"]
+    disp_prob = disp_prob.sort_values("P(Tang|UP)%", ascending=False)
+    disp_prob = disp_prob[disp_prob[["So dot UP tang", "So dot DOWN giam"]].max(axis=1) >= min_periods]
 
-    display_prob = prob[["up_count","P(Tăng|UP)%","Vai trò UP (tổng đóng góp)",
-                          "dn_count","P(Giảm|DOWN)%","Vai trò DOWN (tổng kéo giảm)"]].copy()
-    display_prob.columns = [
-        "Số đợt UP tăng", "P(Tăng|UP)%", "Tổng đóng góp UP",
-        "Số đợt DOWN giảm", "P(Giảm|DOWN)%", "Tổng kéo giảm DOWN"
-    ]
-    display_prob = display_prob.sort_values("P(Tăng|UP)%", ascending=False)
-    display_prob = display_prob[display_prob[["Số đợt UP tăng","Số đợt DOWN giảm"]].max(axis=1) >= min_periods]
-
-    def color_up_pct(val):
+    def color_up(val):
         try:
-            v = float(val)
-            intensity = min(int(v * 2.55), 200)
-            return f"background-color: rgba(0,{intensity},80,0.4); color: #00e676"
+            g = min(int(float(val) * 2.55), 200)
+            return "background-color:rgba(0," + str(g) + ",80,0.4);color:#00e676"
         except:
             return ""
 
-    def color_dn_pct(val):
+    def color_dn(val):
         try:
-            v = float(val)
-            intensity = min(int(v * 2.55), 200)
-            return f"background-color: rgba({intensity},0,50,0.4); color: #ff5252"
+            r = min(int(float(val) * 2.55), 200)
+            return "background-color:rgba(" + str(r) + ",0,50,0.4);color:#ff5252"
         except:
             return ""
 
-    def color_contribution(val):
+    def color_contrib(val):
         try:
-            v = float(val)
-            return "color: #00e676" if v > 0 else "color: #ff5252"
+            return "color:#00e676" if float(val) > 0 else "color:#ff5252"
         except:
             return ""
 
     st.dataframe(
-        display_prob.style
-        .applymap(color_up_pct, subset=["P(Tăng|UP)%"])
-        .applymap(color_dn_pct, subset=["P(Giảm|DOWN)%"])
-        .applymap(color_contribution, subset=["Tổng đóng góp UP", "Tổng kéo giảm DOWN"])
+        disp_prob.style
+        .applymap(color_up,     subset=["P(Tang|UP)%"])
+        .applymap(color_dn,     subset=["P(Giam|DOWN)%"])
+        .applymap(color_contrib, subset=["Tong dong gop UP", "Tong keo giam DOWN"])
         .format({
-            "P(Tăng|UP)%": "{:.1f}%",
-            "P(Giảm|DOWN)%": "{:.1f}%",
-            "Tổng đóng góp UP": "{:+.1f}",
-            "Tổng kéo giảm DOWN": "{:+.1f}",
+            "P(Tang|UP)%":       "{:.1f}%",
+            "P(Giam|DOWN)%":     "{:.1f}%",
+            "Tong dong gop UP":  "{:+.1f}",
+            "Tong keo giam DOWN": "{:+.1f}",
         }),
         use_container_width=True,
         height=500,
     )
-
     st.caption(
-        f"📌 Tổng số đợt UP có dữ liệu: {n_up} | Tổng số đợt DOWN có dữ liệu: {n_down}. "
-        "P(Tăng|UP)% = xác suất cổ phiếu đóng góp dương trong đợt UP của VNIndex."
+        "Tong so dot UP co du lieu: " + str(n_up)
+        + " | Tong so dot DOWN co du lieu: " + str(n_down)
+        + ". P(Tang|UP)% = xac suat co phieu dong gop duong trong dot UP."
     )
 
+# ── MAIN ──────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────
 def main():
-    st.title("📈 VNIndex Contribution Dashboard")
-    st.caption("Dữ liệu HOSE · Cập nhật tự động từ Google Sheets")
+    st.title("VNIndex Contribution Dashboard")
+    st.caption("Du lieu HOSE - Cap nhat tu dong tu Google Sheets")
 
     try:
         hist_raw, pc_raw, c_old_raw, c_new_raw = load_all()
     except Exception as e:
-        st.error(f"❌ Không tải được dữ liệu: {e}")
+        st.error("Khong tai duoc du lieu: " + str(e))
         st.stop()
 
-    # Preprocess
-    hist_df   = prep_history(hist_raw)
-    pc_df     = prep_pc(pc_raw)
-    c_old_df  = prep_contribution_old(c_old_raw)
-    c_new_agg = prep_contribution_new(c_new_raw, pc_df)
-    combined  = combine_contributions(c_old_df, c_new_agg)
+    hist_df  = prep_history(hist_raw)
+    pc_df    = prep_pc(pc_raw)
+    c_old_df = prep_c_old(c_old_raw)
+    c_new_ag = prep_c_new(c_new_raw, pc_df)
+    combined = combine(c_old_df, c_new_ag)
 
-    # KPI bar
     last_row = hist_df.iloc[-1]
     prev_row = hist_df.iloc[-2]
     delta    = last_row["Close"] - prev_row["Close"]
     delta_p  = delta / prev_row["Close"] * 100
 
     k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("VNIndex", f"{last_row['Close']:,.2f}", f"{delta:+.2f} ({delta_p:+.2f}%)")
-    k2.metric("Phiên gần nhất", last_row["Date"].strftime("%d/%m/%Y"))
-
+    k1.metric("VNIndex", "{:,.2f}".format(last_row["Close"]), "{:+.2f} ({:+.2f}%)".format(delta, delta_p))
+    k2.metric("Phien gan nhat", last_row["Date"].strftime("%d/%m/%Y"))
     pc_latest = pc_df.iloc[-1]
-    k3.metric("Đợt hiện tại", pc_latest["Type"],
-              f"{pc_latest['Change_pct']:+.1f}% / {int(pc_latest['Days'])} ngày")
-    k4.metric("Số đợt có dữ liệu", str(pc_df["has_data"].sum()))
-    k5.metric("Tổng cổ phiếu tracking", str(combined["StockCode"].nunique()))
+    k3.metric("Dot hien tai", pc_latest["Type"], "{:+.1f}% / {} ngay".format(pc_latest["Change_pct"], int(pc_latest["Days"])))
+    k4.metric("So dot co du lieu", str(pc_df["has_data"].sum()))
+    k5.metric("Tong co phieu tracking", str(combined["StockCode"].nunique()))
 
     st.markdown("---")
-
-    tab1, tab2, tab3 = st.tabs([
-        "📊 Bảng Contribution theo đợt",
-        "📈 Chart lịch sử VNIndex",
-        "🔍 Insights & Xác suất"
-    ])
+    tab1, tab2, tab3 = st.tabs(["Bang Contribution theo dot", "Chart lich su VNIndex", "Insights & Xac suat"])
 
     with tab1:
         render_tab1(pc_df, combined)
@@ -797,8 +579,7 @@ def main():
         render_tab3(pc_df, combined)
 
     st.markdown("---")
-    st.caption("© VNIndex Dashboard · Dữ liệu từ HOSE · Không phải tư vấn đầu tư")
-
+    st.caption("VNIndex Dashboard - Du lieu tu HOSE - Khong phai tu van dau tu")
 
 if __name__ == "__main__":
     main()
