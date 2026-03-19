@@ -116,7 +116,7 @@ if current == "Contribution":
 
 elif current == "Tích sản cổ phiếu":
     st.title("💹 Tích sản cổ phiếu")
-    st.caption("So sanh gia thi truong voi gia tri chot loi")
+    st.caption("So sánh giá thị thường và giá ngừng TS/chốt lời")
     stockprice_module.render()
 
 # elif current == "Screener":
