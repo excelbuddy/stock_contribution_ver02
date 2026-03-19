@@ -17,6 +17,7 @@ Cau truc sidebar de phat trien them chuc nang:
 import streamlit as st
 from data_loader import load_and_prep
 import contribution as contrib_module
+import stockprice as stockprice_module
 # import screener        (phat trien sau)
 # import portfolio       (phat trien sau)
 
@@ -40,6 +41,7 @@ st.markdown(
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 PAGES = {
     "Contribution":      ("📊", True),
+    "Stock Price":        ("💹", True),
     # "Screener":        ("🔍", False),  # TODO
     # "Portfolio":       ("💼", False),  # TODO
     # "Market Overview": ("🌐", False),  # TODO
@@ -111,6 +113,11 @@ if current == "Contribution":
         contrib_module.render_tab2(hist_df, pc_df)
     with tab3:
         contrib_module.render_tab3(pc_df, combined)
+
+elif current == "Stock Price":
+    st.title("💹 Stock Price Tracker")
+    st.caption("So sanh gia thi truong voi gia tri chot loi")
+    stockprice_module.render()
 
 # elif current == "Screener":
 #     import screener
