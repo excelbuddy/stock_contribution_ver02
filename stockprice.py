@@ -500,10 +500,10 @@ def render(refresh_key=None):
             st.success("Tat ca CP deu an toan (MP < Gia ngung)")
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "Bang chinh (D:P)",
+        "Danh mục Tích sản",
         "Xếp hạng", #Xep hang (R:T & V:X)
-        "Scatter: Profit vs Co tuc",
-        "Tong quan danh muc",
+        "Scatter: Lợi nhuận - Cổ tức",
+        "Tổng quan danh mục",
     ])
     with tab1:
         render_tab1(b1)
