@@ -43,6 +43,7 @@ st.markdown(
 PAGES = {
     "Contribution":      ("📊", True),
     "Stock Price":        ("💹", True),
+    "Vi mo & Hang hoa":   ("🌍", True),
     # "Screener":        ("🔍", False),  # TODO
     # "Portfolio":       ("💼", False),  # TODO
     # "Market Overview": ("🌐", False),  # TODO
