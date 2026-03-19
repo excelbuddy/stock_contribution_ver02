@@ -54,10 +54,18 @@ def prep_history(hist):
     df["Close"] = pd.to_numeric(df["GiaDieuChinh"], errors="coerce")
     return df[["Date", "Close"]].dropna()
 
+def _to_float(series):
+    # Handle strings like "1,336.26" or "1336.26" or already numeric
+    return pd.to_numeric(
+        series.astype(str).str.replace(",", "", regex=False).str.strip(),
+        errors="coerce")
+
 def prep_pc(pc):
     df = pc.copy()
-    df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce")
-    df["End Date"]   = pd.to_datetime(df["End Date"],   errors="coerce")
+    df["Start Date"]     = pd.to_datetime(df["Start Date"], errors="coerce")
+    df["End Date"]       = pd.to_datetime(df["End Date"],   errors="coerce")
+    df["VNIndex-Start"]  = _to_float(df["VNIndex-Start"])
+    df["VNIndex-End"]    = _to_float(df["VNIndex-End"])
     df["Change_pct"] = pd.to_numeric(
         df["Change %"].astype(str)
         .str.replace("%", "", regex=False)
@@ -257,9 +265,9 @@ def render_tab1(pc, combined):
             ptype = period["Type"]
             chg   = period["Change_pct"]
             days  = int(period["Days"])
-            vi_s  = period["VNIndex-Start"]
-            vi_e  = period["VNIndex-End"]
-            gap_pts      = vi_e - vi_s
+            vi_s    = float(str(period["VNIndex-Start"]).replace(",", "")) if pd.notna(period["VNIndex-Start"]) else 0.0
+            vi_e    = float(str(period["VNIndex-End"]).replace(",", ""))   if pd.notna(period["VNIndex-End"])   else 0.0
+            gap_pts = vi_e - vi_s
             period_number = row_start + col_idx + 1
 
             mask = (combined["Start Date"] == sd) & (combined["End Date"] == ed)
