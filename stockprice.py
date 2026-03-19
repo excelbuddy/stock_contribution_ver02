@@ -249,7 +249,7 @@ def render_tab1(b1):
 
     if alert_n > 0:
         alert_list = ", ".join(b1[b1["Alert"]]["CP"].tolist())
-        st.warning("CP da vuot gia ngung (can xem lai): " + alert_list)
+        st.warning("Danh sách CP đã vượt giá ngừng Tích sản: " + alert_list)
 
 # ── TAB 2: Bang 2 & 3 ────────────────────────────────────────────────────────
 
