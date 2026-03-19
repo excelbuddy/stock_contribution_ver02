@@ -100,7 +100,7 @@ def render_tab1(pc, combined):
     with col_f1:
         type_filter = st.selectbox("Loai dot", ["Tat ca", "UP", "DOWN"])
     with col_f2:
-        top_n = st.slider("Top N co phieu", 5, 30, 15)
+        top_n = st.slider("Top cổ phiếu đóng góp", 5, 30, 10)
     with col_f3:
         pc_filtered = pc[pc["has_data"]]
         if type_filter != "Tat ca":
@@ -277,11 +277,11 @@ def render_tab3(pc, combined):
 
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        trend_filter = st.selectbox("Xu huong", ["Tat ca", "UP", "DOWN"])
+        trend_filter = st.selectbox("Xu hướng", ["Tất cả", "UP", "DOWN"])
     with c2:
-        top_stocks = st.slider("So co phieu hien thi", 10, 50, 20)
+        top_stocks = st.slider("Số CP hiển thị", 10, 30, 10)
     with c3:
-        min_periods = st.slider("Xuat hien toi thieu (dot)", 1, 10, 2)
+        min_periods = st.slider("Xuất hiện tối thiểu (đợt)", 1, 10, 6)
 
     rows = []
     for _, p in pc_with_data.iterrows():
@@ -304,7 +304,7 @@ def render_tab3(pc, combined):
 
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown("#### Co phieu dong gop tang nhieu nhat")
+        st.markdown("#### CP đóng góp nhiều nhất")
         if not gainers_data.empty:
             g_agg = (gainers_data.groupby("StockCode")
                      .agg(total=("InfluenceIndex", "sum"),
@@ -346,7 +346,7 @@ def render_tab3(pc, combined):
             st.plotly_chart(fig_l, use_container_width=True)
 
     st.markdown("---")
-    st.markdown("#### Heatmap: Dong gop cua tung co phieu qua cac dot")
+    st.markdown("#### Heatmap: Đóng góp của từng CP qua các đợt")
     all_data["period_label"] = (
         all_data["period_type"] + " "
         + all_data["Start Date"].dt.strftime("%y/%m") + "->"
@@ -375,7 +375,7 @@ def render_tab3(pc, combined):
         st.plotly_chart(fig_h, use_container_width=True)
 
     st.markdown("---")
-    st.markdown("#### Xac suat xuat hien trong dot UP / DOWN")
+    st.markdown("#### Xác suất xuất hiện trong từng đợt UP / DOWN")
     n_up   = len(pc_with_data[pc_with_data["Type"] == "UP"])
     n_down = len(pc_with_data[pc_with_data["Type"] == "DOWN"])
 
@@ -423,5 +423,5 @@ def render_tab3(pc, combined):
                  "Tong dong gop UP": "{:+.1f}", "Tong keo giam DOWN": "{:+.1f}"}),
         use_container_width=True, height=500)
 
-    st.caption("Tong so dot UP: " + str(n_up) + " | DOWN: " + str(n_down)
-               + ". P(Tang|UP)% = xac suat CP dong gop duong trong dot UP.")
+    st.caption("Tổng số đợt UP: " + str(n_up) + " | DOWN: " + str(n_down)
+               + ". P(Tang|UP)% = xác suất CP đóng góp dương trong đợt UP.")
