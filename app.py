@@ -228,7 +228,7 @@ def render_tab1(pc, combined):
     with col_f1:
         type_filter = st.selectbox("Loai dot", ["Tat ca", "UP", "DOWN"])
     with col_f2:
-        top_n = st.slider("Top N co phieu moi dot", 5, 30, 15)
+        top_n = st.slider("Top N co phieu moi dot", 5, 30, 10)
     with col_f3:
         period_labels = [
             r["Type"] + " " + r["Start Date"].strftime("%Y-%m-%d") + " -> "
@@ -290,7 +290,7 @@ def render_tab2(hist_df, pc):
 
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        year_from = st.number_input("Tu nam", min_value=2000, max_value=2026, value=2015, step=1)
+        year_from = st.number_input("Tu nam", min_value=2000, max_value=2026, value=2020, step=1)
     with c2:
         year_to = st.number_input("Den nam", min_value=2000, max_value=2026, value=2026, step=1)
     with c3:
@@ -396,9 +396,9 @@ def render_tab3(pc, combined):
     with c1:
         trend_filter = st.selectbox("Xu huong", ["Tat ca", "UP", "DOWN"])
     with c2:
-        top_stocks = st.slider("So co phieu hien thi", 10, 50, 20)
+        top_stocks = st.slider("So co phieu hien thi", 10, 50, 10)
     with c3:
-        min_periods = st.slider("Xuat hien toi thieu (dot)", 1, 10, 2)
+        min_periods = st.slider("Xuat hien toi thieu (dot)", 1, 10, 6)
 
     merged_rows = []
     for _, p in pc_with_data.iterrows():
