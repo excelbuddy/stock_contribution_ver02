@@ -304,7 +304,7 @@ def render():
                                  key="macro_end")
     with col_d3:
         # Preset range buttons
-        st.markdown("<div style='margin-top:10px;'>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top:28px;'>", unsafe_allow_html=True)
         preset = st.selectbox("Chon nhanh",
                               ["Toan bo", "6 thang", "1 nam", "2 nam"],
                               key="macro_preset")
