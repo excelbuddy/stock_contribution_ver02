@@ -67,7 +67,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(
         '<div style="color:#444;font-size:11px;">'
-        'Du lieu: HOSE<br>Nguon: Google Sheets<br>'
+        'Developed by anhemvanphong<br>All rights reserved!<br>'
         'Không phải tư vấn đầu tư!</div>',
         unsafe_allow_html=True)
 
