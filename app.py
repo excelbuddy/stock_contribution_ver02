@@ -68,7 +68,7 @@ with st.sidebar:
     st.markdown(
         '<div style="color:#444;font-size:11px;">'
         'Du lieu: HOSE<br>Nguon: Google Sheets<br>'
-        'Khong phai tu van dau tu</div>',
+        'Không phải tư vấn đầu tư!</div>',
         unsafe_allow_html=True)
 
 # ── LOAD DATA ─────────────────────────────────────────────────────────────────
@@ -124,4 +124,4 @@ elif current == "Tích sản cổ phiếu":
 #     screener.render(hist_df, pc_df, combined)
 
 st.markdown("---")
-st.caption("VNIndex Dashboard · Du lieu HOSE · Khong phai tu van dau tu")
+st.caption("Developed by anhemvanphong · Dữ liệu chứng khoán · Không phải tư vấn đầu tư")
