@@ -320,7 +320,7 @@ def render_tab3(b1):
         return
 
     # Mau theo danh muc
-    color_map = {"TAN CONG": "#1e88e5", "CAN BANG": "#ff6d00", "PHONG THU": "#b0bec5"}
+    color_map = {"TẤN CÔNG": "#1e88e5", "CÂN BẰNG": "#ff6d00", "PHÒNG THỦ": "#b0bec5"}
     df["color"] = df["Danh muc"].map(color_map).fillna("#aaa")
     df["alert_marker"] = df["Alert"].apply(lambda x: "star" if x else "circle")
 
