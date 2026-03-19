@@ -501,7 +501,7 @@ def render(refresh_key=None):
 
     tab1, tab2, tab3, tab4 = st.tabs([
         "Bang chinh (D:P)",
-        "Xep hang (R:T & V:X)",
+        "Xếp hạng", #Xep hang (R:T & V:X)
         "Scatter: Profit vs Co tuc",
         "Tong quan danh muc",
     ])
