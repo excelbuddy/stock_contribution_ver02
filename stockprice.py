@@ -495,7 +495,7 @@ def render(refresh_key=None):
     with col_r1:
         alert_count = b1["Alert"].sum()
         if alert_count > 0:
-            st.warning(str(alert_count) + " CP da vuot gia ngung. Kiem tra Tab 1!")
+            st.warning(str(alert_count) + " CP đã vượt giá ngừng tích sản. Xem tab "Danh mục tích sản"!")
         else:
             st.success("Tat ca CP deu an toan (MP < Gia ngung)")
 
