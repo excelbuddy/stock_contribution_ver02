@@ -15,16 +15,16 @@ MACRO_SHEET_ID = "1zj3uFY0RwFUKTQNQCkQvPzvXqE3oPQlH7PVJ5VHsxyM"
 
 # ── Mau cho tung series ───────────────────────────────────────────────────────
 SERIES_COLORS = {
-    "Dau tho WTI":      "#2196f3",
-    "Duong":            "#e91e63",
-    "Khi thien nhien":  "#ff9800",
-    "Nickel":           "#9c27b0",
-    "Quang sat":        "#795548",
-    "Than coc":         "#607d8b",
-    "Thep HRC":         "#f44336",
-    "Copper":           "#ff5722",
-    "London Coffee":    "#4caf50",
-    "Platinum":         "#00bcd4",
+    "Dau tho WTI":      "#1a237e",   # xanh duong dam (navy)
+    "Duong":            "#c62828",   # do dam
+    "Khi thien nhien":  "#2e7d32",   # xanh la dam
+    "Nickel":           "#ec407a",   # hong/magenta
+    "Quang sat":        "#00acc1",   # xanh cyan
+    "Than coc":         "#558b2f",   # xanh la nhat
+    "Thep HRC":         "#8b0000",   # do nau dam (dark red)
+    "Copper":           "#ef6c00",   # cam dam
+    "London Coffee":    "#4e342e",   # nau dam
+    "Platinum":         "#9e9e9e",   # xam
 }
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ def build_hanghoa_chart(df, selected_series, date_range):
     if len(label_positions) > 1:
         all_y   = [p[0] for p in label_positions]
         y_range = max(all_y) - min(all_y)
-        min_gap = max(1.5, y_range / (len(label_positions) * 2.5))
+        min_gap = max(2.5, y_range / len(label_positions) * 0.6)
     else:
         min_gap = 1.5
 
@@ -213,7 +213,7 @@ def build_hanghoa_chart(df, selected_series, date_range):
             ay=0,
             xanchor="left",
             font=dict(size=10, color=color),
-            bgcolor="rgba(15,17,26,0.85)",
+            bgcolor="rgba(255,255,255,0.9)",
             borderpad=2,
         )
 
@@ -229,33 +229,36 @@ def build_hanghoa_chart(df, selected_series, date_range):
 
     # --- Layout ---
     fig.update_layout(
-        template="plotly_dark",
-        height=520,
-        margin=dict(l=50, r=280, t=40, b=50),  # r rong de cho labels
+        template="plotly_white",
+        height=560,
+        margin=dict(l=50, r=290, t=40, b=50),  # r rong de cho labels
         xaxis=dict(
             title="",
             showgrid=True,
-            gridcolor="#1e2130",
+            gridcolor="#e8e8e8",
             tickformat="%m/%Y",
+            linecolor="#ccc",
         ),
         yaxis=dict(
             title="Quy doi 100% (%)",
             ticksuffix="%",
             showgrid=True,
-            gridcolor="#1e2130",
+            gridcolor="#e8e8e8",
             zeroline=False,
+            linecolor="#ccc",
         ),
         hovermode="x unified",
-        plot_bgcolor="#0f111a",
-        paper_bgcolor="#0f111a",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font=dict(color="#333"),
     )
 
     # Them duong 100% lam moc tham chieu
     fig.add_hline(
         y=100, line_dash="dot",
-        line_color="#555", line_width=1.2,
+        line_color="#999", line_width=1.2,
         annotation_text="  100%",
-        annotation_font=dict(color="#555", size=10),
+        annotation_font=dict(color="#999", size=10),
         annotation_position="left",
     )
 
