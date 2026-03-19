@@ -15,7 +15,7 @@ MACRO_SHEET_ID = "1zj3uFY0RwFUKTQNQCkQvPzvXqE3oPQlH7PVJ5VHsxyM"
 
 # ── Mau cho tung series ───────────────────────────────────────────────────────
 SERIES_COLORS = {
-    "Dau tho WTI":      "#1a237e",   # xanh duong dam (navy)
+    "Dau tho WTI":      "#0000FF",   # xanh duong dam (navy)
     "Duong":            "#c62828",   # do dam
     "Khi thien nhien":  "#2e7d32",   # xanh la dam
     "Nickel":           "#ec407a",   # hong/magenta
