@@ -247,7 +247,7 @@ def build_hanghoa_chart(df, selected_series, date_range):
             zeroline=False,
             linecolor="#ccc",
         ),
-        hovermode="x unified",
+        hovermode="closest",
         plot_bgcolor="white",
         paper_bgcolor="white",
         font=dict(color="#333"),
@@ -293,22 +293,19 @@ def render():
     min_date = df["Date"].min().date()
     max_date = df["Date"].max().date()
 
-    col_d1, col_d2, col_d3 = st.columns([3, 3, 3])
+    col_d1, col_d2, col_d3 = st.columns(3)
     with col_d1:
-        start_date = st.date_input("Tu ngay", value=min_date,
-                                   min_value=min_date, max_value=max_date,
-                                   key="macro_start")
-    with col_d2:
-        end_date = st.date_input("Den ngay", value=max_date,
-                                 min_value=min_date, max_value=max_date,
-                                 key="macro_end")
-    with col_d3:
-        # Preset range buttons
-        st.markdown("<div style='margin-top:28px;'>", unsafe_allow_html=True)
         preset = st.selectbox("Chon nhanh",
                               ["Toan bo", "6 thang", "1 nam", "2 nam"],
                               key="macro_preset")
-        st.markdown("</div>", unsafe_allow_html=True)
+    with col_d2:
+        start_date = st.date_input("Tu ngay", value=min_date,
+                                   min_value=min_date, max_value=max_date,
+                                   key="macro_start")
+    with col_d3:
+        end_date = st.date_input("Den ngay", value=max_date,
+                                 min_value=min_date, max_value=max_date,
+                                 key="macro_end")
 
     # Ap dung preset
     import datetime
