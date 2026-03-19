@@ -18,6 +18,7 @@ import streamlit as st
 from data_loader import load_and_prep
 import contribution as contrib_module
 import stockprice as stockprice_module
+import macro as macro_module
 # import screener        (phat trien sau)
 # import portfolio       (phat trien sau)
 
@@ -41,7 +42,7 @@ st.markdown(
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 PAGES = {
     "Contribution":      ("📊", True),
-    "Tích sản cổ phiếu":        ("💹", True),
+    "Stock Price":        ("💹", True),
     # "Screener":        ("🔍", False),  # TODO
     # "Portfolio":       ("💼", False),  # TODO
     # "Market Overview": ("🌐", False),  # TODO
@@ -67,8 +68,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(
         '<div style="color:#444;font-size:11px;">'
-        'Developed by anhemvanphong<br>All rights reserved!<br>'
-        'Không phải tư vấn đầu tư!</div>',
+        'Du lieu: HOSE<br>Nguon: Google Sheets<br>'
+        'Khong phai tu van dau tu</div>',
         unsafe_allow_html=True)
 
 # ── LOAD DATA ─────────────────────────────────────────────────────────────────
@@ -114,14 +115,19 @@ if current == "Contribution":
     with tab3:
         contrib_module.render_tab3(pc_df, combined)
 
-elif current == "Tích sản cổ phiếu":
-    st.title("💹 Tích sản cổ phiếu")
-    st.caption("So sánh giá thị thường và giá ngừng TS/chốt lời")
+elif current == "Stock Price":
+    st.title("💹 Stock Price Tracker")
+    st.caption("So sanh gia thi truong voi gia tri chot loi")
     stockprice_module.render()
+
+elif current == "Vi mo & Hang hoa":
+    st.title("🌍 Vi mo & Hang hoa")
+    st.caption("Bieu do hang hoa, lai suat, ty gia va cac chi so vi mo")
+    macro_module.render()
 
 # elif current == "Screener":
 #     import screener
 #     screener.render(hist_df, pc_df, combined)
 
 st.markdown("---")
-st.caption("Developed by anhemvanphong · Dữ liệu chứng khoán · Không phải tư vấn đầu tư")
+st.caption("VNIndex Dashboard · Du lieu HOSE · Khong phai tu van dau tu")
