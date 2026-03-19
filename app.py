@@ -41,7 +41,7 @@ st.markdown(
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 PAGES = {
     "Contribution":      ("📊", True),
-    "Stock Price":        ("💹", True),
+    "Tích sản cổ phiếu":        ("💹", True),
     # "Screener":        ("🔍", False),  # TODO
     # "Portfolio":       ("💼", False),  # TODO
     # "Market Overview": ("🌐", False),  # TODO
@@ -114,8 +114,8 @@ if current == "Contribution":
     with tab3:
         contrib_module.render_tab3(pc_df, combined)
 
-elif current == "Stock Price":
-    st.title("💹 Stock Price Tracker")
+elif current == "Tích sản cổ phiếu":
+    st.title("💹 Tích sản cổ phiếu")
     st.caption("So sanh gia thi truong voi gia tri chot loi")
     stockprice_module.render()
 
