@@ -114,10 +114,12 @@ def load_hanghoa(raw):
     return data
 
 def load_world(raw):
+    # Col Z(25)-AG(32), row 0 = header dang "https://... tradingDate"
     sub = raw.iloc[:, 25:33].copy()
     headers = ["Date","DAX","DJI","Gold","NIKKEI225","S&P500","SHANGHAI","VNI"]
     data = sub.iloc[1:].copy()
     data.columns = headers
+    data = data[data["Date"].astype(str).str.match(r"\d{4}-\d{2}-\d{2}")]
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
     for col in headers[1:]:
@@ -125,10 +127,12 @@ def load_world(raw):
     return data
 
 def load_dxy(raw):
+    # Col F(5)-J(9), row 0 = header dang "https://... Corect Date"
     sub = raw.iloc[:, 5:10].copy()
     headers = ["Date","DXY","USD/VND (VCB)","USDT","USDC"]
     data = sub.iloc[1:].copy()
     data.columns = headers
+    data = data[data["Date"].astype(str).str.match(r"\d{4}-\d{2}-\d{2}")]
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
     for col in headers[1:]:
@@ -136,10 +140,14 @@ def load_dxy(raw):
     return data
 
 def load_laisuat(raw):
+    # Col A(0)-E(4), row 0 = header, data bat dau row 1
+    # Nhung col A chua date dang "2024-03-19" xen ke voi nan
     sub = raw.iloc[:, 0:5].copy()
     headers = ["Date","Lai suat FED","Lai suat LNH","TPCP My 5Y","TPCP VN 5Y"]
     data = sub.iloc[1:].copy()
     data.columns = headers
+    # Chi lay dong co Date hop le (bo cac dong co Date la nan hoac URL)
+    data = data[data["Date"].astype(str).str.match(r"\d{4}-\d{2}-\d{2}")]
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
     for col in headers[1:]:
