@@ -330,11 +330,13 @@ def render():
     c1, c2, c3 = st.columns(3)
     with c1:
         preset = st.selectbox("Chon nhanh",
-                              ["Nam nay", "Toan bo", "1 nam", "6 thang"],
+                              ["Tu nam 2025", "Nam nay", "Toan bo", "1 nam", "6 thang"],
                               key="inv_preset")
 
     # Tinh default_start theo preset (preset quyet dinh Tu ngay)
-    if preset == "Nam nay":
+    if preset == "Tu nam 2025":
+        default_start = datetime.date(2025, 1, 1)
+    elif preset == "Nam nay":
         default_start = datetime.date(max_date.year, 1, 1)
     elif preset == "1 nam":
         default_start = max_date - datetime.timedelta(days=365)
