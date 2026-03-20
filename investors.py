@@ -199,22 +199,32 @@ def build_chart(df, selected_groups, date_range, show_vni):
                     yshift=10,
                 )
 
-    # ── End-of-line labels (collision avoidance) ──────────────────────────────
-    all_vals    = [p[0] for p in label_positions]
+    # ── End-of-line labels sat dau cham (dung last_date truc x thuc) ────────────
+    all_vals = [p[0] for p in label_positions]
     if len(all_vals) > 1:
         val_range = max(all_vals) - min(all_vals)
         min_gap   = max(8, val_range / len(all_vals) * 0.55)
     else:
         min_gap = 8
 
+    # Last date trong vung hien thi (de dat label sat phai)
+    last_date_plot = df_plot["Date"].max()
+
     adjusted = _adjust_labels(label_positions, min_gap=min_gap)
     for (adj_y, grp_name, color) in adjusted:
-        real_y = next((p[0] for p in label_positions if p[1] == grp_name), adj_y)
+        real_y    = next((p[0] for p in label_positions if p[1] == grp_name), adj_y)
+        # Tim last date cua chinh series nay
+        grp_col   = GROUPS[grp_name]["col"]
+        grp_data  = df_plot[["Date", grp_col]].dropna(subset=[grp_col])
+        last_x    = grp_data["Date"].iloc[-1] if not grp_data.empty else last_date_plot
         fig.add_annotation(
-            x=1.01, y=adj_y, xref="paper", yref="y",
+            x=last_x,
+            y=adj_y,
+            xref="x", yref="y",
             text="<b>" + grp_name + "</b>: " + _fmt_val(real_y) + " ty",
-            showarrow=True, arrowhead=0, arrowwidth=1,
-            arrowcolor=color, ax=5, ay=0,
+            showarrow=True,
+            arrowhead=0, arrowwidth=1, arrowcolor=color,
+            ax=12, ay=0,          # offset ngang 12px sang phai so voi dau cham
             xanchor="left",
             font=dict(size=10, color=color),
             bgcolor="rgba(255,255,255,0.92)",
@@ -316,24 +326,27 @@ def render():
     st.markdown("---")
 
     # ── Controls ──────────────────────────────────────────────────────────────
-    c1, c2, c3 = st.columns(3)
     import datetime
+    c1, c2, c3 = st.columns(3)
     with c1:
         preset = st.selectbox("Chon nhanh",
-                              ["Toan bo", "Nam nay", "1 nam", "6 thang"],
+                              ["Nam nay", "Toan bo", "1 nam", "6 thang"],
                               key="inv_preset")
+
+    # Tinh default_start theo preset (preset quyet dinh Tu ngay)
+    if preset == "Nam nay":
+        default_start = datetime.date(max_date.year, 1, 1)
+    elif preset == "1 nam":
+        default_start = max_date - datetime.timedelta(days=365)
+    elif preset == "6 thang":
+        default_start = max_date - datetime.timedelta(days=180)
+    else:  # Toan bo
+        default_start = min_date
+
     with c2:
-        if preset == "Nam nay":
-            default_start = datetime.date(max_date.year, 1, 1)
-        elif preset == "1 nam":
-            default_start = max_date - datetime.timedelta(days=365)
-        elif preset == "6 thang":
-            default_start = max_date - datetime.timedelta(days=180)
-        else:
-            default_start = min_date
         start_date = st.date_input("Tu ngay", value=default_start,
                                    min_value=min_date, max_value=max_date,
-                                   key="inv_start")
+                                   key="inv_start_" + preset)   # key doi theo preset -> reset value
     with c3:
         end_date = st.date_input("Den ngay", value=max_date,
                                  min_value=min_date, max_value=max_date,
