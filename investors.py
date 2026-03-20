@@ -315,7 +315,7 @@ def build_chart(df, selected_groups, date_range, show_vni):
     fig.update_layout(
         template="plotly_white",
         height=580,
-        margin=dict(l=60, r=260, t=50, b=50),
+        margin=dict(l=60, r=180, t=50, b=50),
         hovermode="closest",
         legend=dict(
             orientation="h", yanchor="bottom", y=1.02,
