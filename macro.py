@@ -19,7 +19,7 @@ SERIES_COLORS = {
     "Duong":            "#ff0000",   # do dam
     "Khi thien nhien":  "#00ff00",   # xanh la dam
     "Nickel":           "#ff00ff",   # hong/magenta
-    "Quang sat":        "#00acc1",   # xanh cyan
+    "Quang sat":        "#00ffff",   # xanh cyan
     "Than coc":         "#34a853",   # xanh la nhat
     "Thep HRC":         "#980000",   # do nau dam (dark red)
     "Copper":           "#ef6c00",   # cam dam
