@@ -54,13 +54,13 @@ def load_investors():
         raw.columns[38]: "CN cd",
         raw.columns[39]: "VNI",
     }
-    df = raw.iloc[:, [0, 35, 36, 37, 38, 39]].copy()
-    df.columns = ["Date", "NN cd", "TD cd", "TC cd", "CN cd", "VNI"]
+    df = raw.iloc[:, [0, 31, 32, 33, 34, 35, 36, 37, 38, 39]].copy()
+    df.columns = ["Date", "NN", "TD", "TC", "CN", "NN cd", "TD cd", "TC cd", "CN cd", "VNI"]
 
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"]).sort_values("Date").reset_index(drop=True)
 
-    for col in ["NN cd", "TD cd", "TC cd", "CN cd", "VNI"]:
+    for col in ["NN", "TD", "TC", "CN", "NN cd", "TD cd", "TC cd", "CN cd", "VNI"]:
         df[col] = _parse_num(df[col])
 
     df["Year"] = df["Date"].dt.year
@@ -102,6 +102,41 @@ def build_chart(df, selected_groups, date_range, show_vni):
     # 2 truc Y: trai = gia tri cd (ty dong), phai = VNIndex
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    # ── Bar chart gia tri mua rong tung phien (khong cong don) ─────────────────
+    BAR_COL_MAP = {
+        "Nuoc ngoai": "NN",
+        "Tu doanh":   "TD",
+        "To chuc":    "TC",
+        "Ca nhan":    "CN",
+    }
+    for grp_name, cfg in GROUPS.items():
+        if grp_name not in selected_groups:
+            continue
+        bar_col = BAR_COL_MAP[grp_name]
+        if bar_col not in df_plot.columns:
+            continue
+        bar_data = df_plot[["Date", bar_col]].dropna(subset=[bar_col])
+        if bar_data.empty:
+            continue
+        color = cfg["color"]
+        # Chuyen hex sang rgba voi opacity 50%
+        r = int(color[1:3], 16)
+        g = int(color[3:5], 16)
+        b = int(color[5:7], 16)
+        rgba = "rgba({},{},{},0.35)".format(r, g, b)
+        fig.add_trace(go.Bar(
+            x=bar_data["Date"],
+            y=bar_data[bar_col],
+            name=grp_name + " (phien)",
+            legendgroup=grp_name,
+            marker_color=rgba,
+            marker_line_width=0,
+            showlegend=False,
+            hovertemplate=(
+                "<b>" + grp_name + " (mua rong phien)</b><br>"
+                "%{x|%d/%m/%Y}: %{y:+,.0f} ty<extra></extra>"),
+        ), secondary_y=False)
+
     # ── VNI line (lien mach, truc phai) ──────────────────────────────────────
     if show_vni:
         vni_data = df_plot[["Date", "VNI"]].dropna(subset=["VNI"])
@@ -123,7 +158,7 @@ def build_chart(df, selected_groups, date_range, show_vni):
             showlegend=False, hoverinfo="skip",
         ), secondary_y=True)
         fig.add_annotation(
-            x=last_date_vni, y=last_vni, xref="x", yref="y2",
+            x=1.01, y=last_vni, xref="paper", yref="y2",
             text="<b>VNIndex</b>: {:,.0f}".format(last_vni),
             showarrow=True, arrowhead=0, arrowwidth=1,
             arrowcolor=VNI_COLOR, ax=5, ay=0,
@@ -263,6 +298,7 @@ def build_chart(df, selected_groups, date_range, show_vni):
         plot_bgcolor="white",
         paper_bgcolor="white",
         font=dict(color="#333"),
+        barmode="relative",
     )
     fig.update_xaxes(
         showgrid=True, gridcolor="#f0f0f0",
@@ -330,13 +366,11 @@ def render():
     c1, c2, c3 = st.columns(3)
     with c1:
         preset = st.selectbox("Chon nhanh",
-                              ["Tu nam 2025", "Nam nay", "Toan bo", "1 nam", "6 thang"],
+                              ["Nam nay", "Toan bo", "1 nam", "6 thang"],
                               key="inv_preset")
 
     # Tinh default_start theo preset (preset quyet dinh Tu ngay)
-    if preset == "Tu nam 2025":
-        default_start = datetime.date(2025, 1, 1)
-    elif preset == "Nam nay":
+    if preset == "Nam nay":
         default_start = datetime.date(max_date.year, 1, 1)
     elif preset == "1 nam":
         default_start = max_date - datetime.timedelta(days=365)
@@ -387,7 +421,7 @@ def render():
                 lambda v: "{:+,.0f}".format(v) if pd.notna(v) else "-")
         df_show["VNI"] = df_show["VNI"].apply(
             lambda v: "{:,.0f}".format(v) if pd.notna(v) else "-")
-        df_show = df_show.drop(columns=["Year"])
+        df_show = df_show.drop(columns=["Year", "NN", "TD", "TC", "CN"])
         df_show.columns = ["Ngay", "Nuoc ngoai", "Tu doanh",
                            "To chuc", "Ca nhan", "VNIndex"]
         st.dataframe(df_show, use_container_width=True, hide_index=True)
