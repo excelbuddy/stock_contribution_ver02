@@ -18,7 +18,7 @@ SERIES_COLORS = {
     "Dau tho WTI":      "#0000ff",   # xanh duong dam (navy)
     "Duong":            "#c62828",   # do dam
     "Khi thien nhien":  "#00ff00",   # xanh la dam
-    "Nickel":           "#ec407a",   # hong/magenta
+    "Nickel":           "#ff00ff",   # hong/magenta
     "Quang sat":        "#00acc1",   # xanh cyan
     "Than coc":         "#558b2f",   # xanh la nhat
     "Thep HRC":         "#8b0000",   # do nau dam (dark red)
