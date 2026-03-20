@@ -253,26 +253,26 @@ def build_chart(df, selected_groups, date_range, show_vni):
         plot_bgcolor="white",
         paper_bgcolor="white",
         font=dict(color="#333"),
-        xaxis=dict(
-            showgrid=True, gridcolor="#f0f0f0",
-            tickformat="%m/%Y", linecolor="#ccc",
-        ),
-        yaxis=dict(
-            title="Gia tri cong don (ty dong)",
-            showgrid=True, gridcolor="#f0f0f0",
-            zeroline=False, linecolor="#ccc",
-            tickformat=",",
-        ),
-        yaxis2=dict(
-            title="VNIndex",
-            showgrid=False,
-            tickformat=",",
-            overlaying="y",
-            side="right",
-            linecolor=VNI_COLOR,
-            titlefont=dict(color=VNI_COLOR),
-            tickfont=dict(color=VNI_COLOR),
-        ),
+    )
+    fig.update_xaxes(
+        showgrid=True, gridcolor="#f0f0f0",
+        tickformat="%m/%Y", linecolor="#ccc",
+    )
+    fig.update_yaxes(
+        title_text="Gia tri cong don (ty dong)",
+        showgrid=True, gridcolor="#f0f0f0",
+        zeroline=False, linecolor="#ccc",
+        tickformat=",",
+        secondary_y=False,
+    )
+    fig.update_yaxes(
+        title_text="VNIndex",
+        showgrid=False,
+        tickformat=",",
+        linecolor=VNI_COLOR,
+        title_font=dict(color=VNI_COLOR),
+        tickfont=dict(color=VNI_COLOR),
+        secondary_y=True,
     )
 
     return fig
