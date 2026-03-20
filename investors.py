@@ -145,8 +145,8 @@ def build_chart(df, selected_groups, date_range, show_vni):
             if yr_data.empty:
                 continue
 
-            is_last_year = (yr == years[-1])
-            show_leg     = (yr == years[0])   # chi hien legend 1 lan
+            is_last_year = bool(yr == years[-1])
+            show_leg     = bool(yr == years[0])   # chi hien legend 1 lan
 
             fig.add_trace(go.Scatter(
                 x=yr_data["Date"],
