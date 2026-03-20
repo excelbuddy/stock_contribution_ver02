@@ -184,7 +184,7 @@ def build_chart(df, selected_groups, date_range, show_vni):
             showlegend=False, hoverinfo="skip",
         ), secondary_y=True)
         fig.add_annotation(
-            x=1.01, y=last_vni, xref="paper", yref="y2",
+            x=last_date_vni, y=last_vni, xref="x", yref="y2",
             text="<b>VNIndex</b>: {:,.0f}".format(last_vni),
             showarrow=True, arrowhead=0, arrowwidth=1,
             arrowcolor=VNI_COLOR, ax=5, ay=0,
