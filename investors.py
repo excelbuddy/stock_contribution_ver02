@@ -148,7 +148,7 @@ def build_chart(df, selected_groups, date_range, show_vni):
         r = int(color[1:3], 16)
         g = int(color[3:5], 16)
         b = int(color[5:7], 16)
-        rgba = "rgba({},{},{},0.75)".format(r, g, b)
+        rgba = "rgba({},{},{},0.50)".format(r, g, b)
         fig.add_trace(go.Bar(
             x=bar_data["Date"],
             y=bar_data[bar_col],
