@@ -19,6 +19,7 @@ from data_loader import load_and_prep
 import contribution as contrib_module
 import stockprice as stockprice_module
 import macro as macro_module
+import investors as investors_module
 # import screener        (phat trien sau)
 # import portfolio       (phat trien sau)
 
@@ -41,12 +42,12 @@ st.markdown(
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 PAGES = {
-    "Contribution":      ("📊", True),
-    "Stock Price":        ("💹", True),
+    "Contribution":       ("📊", True),
+    "Tich san co phieu":  ("💹", True),
     "Vi mo & Hang hoa":   ("🌍", True),
-    # "Screener":        ("🔍", False),  # TODO
-    # "Portfolio":       ("💼", False),  # TODO
-    # "Market Overview": ("🌐", False),  # TODO
+    "Investor Stats":     ("👥", True),
+    # "Screener":         ("🔍", False),  # TODO
+    # "Portfolio":        ("💼", False),  # TODO
 }
 
 with st.sidebar:
@@ -116,8 +117,8 @@ if current == "Contribution":
     with tab3:
         contrib_module.render_tab3(pc_df, combined)
 
-elif current == "Stock Price":
-    st.title("💹 Stock Price Tracker")
+elif current == "Tich san co phieu":
+    st.title("💹 Tich san Co phieu")
     st.caption("So sanh gia thi truong voi gia tri chot loi")
     stockprice_module.render()
 
@@ -125,6 +126,11 @@ elif current == "Vi mo & Hang hoa":
     st.title("🌍 Vi mo & Hang hoa")
     st.caption("Bieu do hang hoa, lai suat, ty gia va cac chi so vi mo")
     macro_module.render()
+
+elif current == "Investor Stats":
+    st.title("👥 Investor Statistics")
+    st.caption("Thong ke mua ban cong don theo nhom nha dau tu")
+    investors_module.render()
 
 # elif current == "Screener":
 #     import screener
