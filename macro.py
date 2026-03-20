@@ -240,7 +240,7 @@ def build_line_chart(df, selected, date_range, colors, y_title,
             arrowcolor=color, ax=10, ay=0,
             xanchor="left",
             font=dict(size=10, color=color),
-            bgcolor="rgba(255,255,255,0.88)",
+            bgcolor="rgba(0,0,0,0)", #bgcolor="rgba(255,255,255,0.88)",
             borderpad=2,
         )
 
@@ -456,7 +456,7 @@ def render():
                 showarrow=True, arrowhead=0, arrowwidth=1,
                 arrowcolor=color, ax=10, ay=0, xanchor="left",
                 font=dict(size=10, color=color),
-                bgcolor="rgba(255,255,255,0.88)", borderpad=2,
+                bgcolor="rgba(0,0,0,0)", borderpad=2,                       #bgcolor="rgba(255,255,255,0.88)", borderpad=2,
             )
 
         fig3.update_layout(
