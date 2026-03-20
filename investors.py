@@ -100,7 +100,10 @@ def build_chart(df, selected_groups, date_range, show_vni):
     years = sorted(df_plot["Year"].unique())
 
     # 2 truc Y: trai = gia tri cd (ty dong), phai = VNIndex
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig = make_subplots(
+        specs=[[{"secondary_y": True}]],
+        # yaxis3 se duoc them thu cong cho bar
+    )
 
     # ── Bar chart gia tri mua rong tung phien (khong cong don) ─────────────────
     BAR_COL_MAP = {
@@ -299,6 +302,17 @@ def build_chart(df, selected_groups, date_range, show_vni):
         paper_bgcolor="white",
         font=dict(color="#333"),
         barmode="relative",
+        yaxis3=dict(
+            overlaying="y",
+            side="left",
+            showgrid=False,
+            showticklabels=False,
+            showline=False,
+            zeroline=True,
+            zerolinecolor="#ddd",
+            zerolinewidth=1,
+            anchor="x",
+        ),
     )
     fig.update_xaxes(
         showgrid=True, gridcolor="#f0f0f0",
@@ -366,11 +380,13 @@ def render():
     c1, c2, c3 = st.columns(3)
     with c1:
         preset = st.selectbox("Chon nhanh",
-                              ["Nam nay", "Toan bo", "1 nam", "6 thang"],
+                              ["Tu nam 2025", "Nam nay", "Toan bo", "1 nam", "6 thang"],
                               key="inv_preset")
 
     # Tinh default_start theo preset (preset quyet dinh Tu ngay)
-    if preset == "Nam nay":
+    if preset == "Tu nam 2025":
+        default_start = datetime.date(2025, 1, 1)
+    elif preset == "Nam nay":
         default_start = datetime.date(max_date.year, 1, 1)
     elif preset == "1 nam":
         default_start = max_date - datetime.timedelta(days=365)
