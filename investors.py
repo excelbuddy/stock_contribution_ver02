@@ -112,6 +112,29 @@ def build_chart(df, selected_groups, date_range, show_vni):
         "To chuc":    "TC",
         "Ca nhan":    "CN",
     }
+
+    # Tinh range cho yaxis3 tu tong bar cong don theo ngay (barmode=relative)
+    # => moi ngay lay sum(duong) va sum(am) de biet max/min thuc su
+    bar_all_vals = []
+    for grp_name, cfg in GROUPS.items():
+        if grp_name not in selected_groups:
+            continue
+        bar_col = BAR_COL_MAP[grp_name]
+        if bar_col in df_plot.columns:
+            bar_all_vals.append(df_plot[bar_col].dropna())
+
+    if bar_all_vals:
+        import pandas as _pd
+        combined_bar = _pd.concat(bar_all_vals, axis=1)
+        # Moi ngay: pos_sum = sum cac gia tri duong, neg_sum = sum cac gia tri am
+        pos_sum = combined_bar.clip(lower=0).sum(axis=1).max()
+        neg_sum = combined_bar.clip(upper=0).sum(axis=1).min()
+        pad = max(abs(pos_sum), abs(neg_sum)) * 0.15  # them 15% padding
+        bar_y_max =  pos_sum + pad
+        bar_y_min =  neg_sum - pad
+    else:
+        bar_y_max, bar_y_min = 5000, -5000
+
     for grp_name, cfg in GROUPS.items():
         if grp_name not in selected_groups:
             continue
@@ -122,7 +145,6 @@ def build_chart(df, selected_groups, date_range, show_vni):
         if bar_data.empty:
             continue
         color = cfg["color"]
-        # Chuyen hex sang rgba voi opacity 50%
         r = int(color[1:3], 16)
         g = int(color[3:5], 16)
         b = int(color[5:7], 16)
@@ -135,10 +157,11 @@ def build_chart(df, selected_groups, date_range, show_vni):
             marker_color=rgba,
             marker_line_width=0,
             showlegend=False,
+            yaxis="y3",
             hovertemplate=(
                 "<b>" + grp_name + " (mua rong phien)</b><br>"
                 "%{x|%d/%m/%Y}: %{y:+,.0f} ty<extra></extra>"),
-        ), secondary_y=False)
+        ))
 
     # ── VNI line (lien mach, truc phai) ──────────────────────────────────────
     if show_vni:
@@ -309,9 +332,10 @@ def build_chart(df, selected_groups, date_range, show_vni):
             showticklabels=False,
             showline=False,
             zeroline=True,
-            zerolinecolor="#ddd",
+            zerolinecolor="#ccc",
             zerolinewidth=1,
             anchor="x",
+            range=[bar_y_min, bar_y_max],
         ),
     )
     fig.update_xaxes(
