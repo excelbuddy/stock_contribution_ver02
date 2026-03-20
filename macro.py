@@ -20,8 +20,8 @@ SERIES_COLORS = {
     "Khi thien nhien":  "#00ff00",   # xanh la dam
     "Nickel":           "#ff00ff",   # hong/magenta
     "Quang sat":        "#00acc1",   # xanh cyan
-    "Than coc":         "#558b2f",   # xanh la nhat
-    "Thep HRC":         "#8b0000",   # do nau dam (dark red)
+    "Than coc":         "#34a853",   # xanh la nhat
+    "Thep HRC":         "#980000",   # do nau dam (dark red)
     "Copper":           "#ef6c00",   # cam dam
     "London Coffee":    "#4e342e",   # nau dam
     "Platinum":         "#9e9e9e",   # xam
