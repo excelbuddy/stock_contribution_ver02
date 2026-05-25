@@ -263,8 +263,8 @@ def render_tab2(hist_df, pc):
             return ""
 
     st.dataframe(
-        disp.style.applymap(color_type, subset=["Type"])
-                  .applymap(color_chg,  subset=["Change %"]),
+        disp.style.map(color_type, subset=["Type"])
+                  .map(color_chg,  subset=["Change %"]),
         use_container_width=True, height=300)
 
 # ── TAB 3 ─────────────────────────────────────────────────────────────────────
@@ -416,9 +416,9 @@ def render_tab3(pc, combined):
 
     st.dataframe(
         dp.style
-        .applymap(cu, subset=["P(Tang|UP)%"])
-        .applymap(cd, subset=["P(Giam|DOWN)%"])
-        .applymap(cc, subset=["Tong dong gop UP", "Tong keo giam DOWN"])
+        .map(cu, subset=["P(Tang|UP)%"])
+        .map(cd, subset=["P(Giam|DOWN)%"])
+        .map(cc, subset=["Tong dong gop UP", "Tong keo giam DOWN"])
         .format({"P(Tang|UP)%": "{:.1f}%", "P(Giam|DOWN)%": "{:.1f}%",
                  "Tong dong gop UP": "{:+.1f}", "Tong keo giam DOWN": "{:+.1f}"}),
         use_container_width=True, height=500)
