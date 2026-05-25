@@ -93,6 +93,12 @@ def _build_table(gainers, losers, gap_pts):
     p.append('</tbody></table></div>')
     return "".join(p)
 
+# ── STYLE HELPERS (tuong thich moi phien ban pandas) ──────────────────────────
+
+def _style_col(series, fn):
+    """Apply fn to each element of a Series, return list of style strings."""
+    return [fn(v) for v in series]
+
 # ── TAB 1 ─────────────────────────────────────────────────────────────────────
 
 def render_tab1(pc, combined):
@@ -250,21 +256,26 @@ def render_tab2(hist_df, pc):
     disp["Start Date"] = disp["Start Date"].dt.strftime("%Y-%m-%d")
     disp["End Date"]   = disp["End Date"].dt.strftime("%Y-%m-%d")
 
-    def color_type(v):
-        if v == "UP":
-            return "background-color:#1b3a1b;color:#00e676;font-weight:bold"
-        return "background-color:#3a1b1b;color:#ff5252;font-weight:bold"
+    def color_type(s):
+        return [
+            "background-color:#1b3a1b;color:#00e676;font-weight:bold" if v == "UP"
+            else "background-color:#3a1b1b;color:#ff5252;font-weight:bold"
+            for v in s
+        ]
 
-    def color_chg(v):
-        try:
-            n = float(str(v).replace("%", "").replace("+", "").strip())
-            return "color:#00e676;font-weight:bold" if n > 0 else "color:#ff5252;font-weight:bold"
-        except:
-            return ""
+    def color_chg(s):
+        result = []
+        for v in s:
+            try:
+                n = float(str(v).replace("%", "").replace("+", "").strip())
+                result.append("color:#00e676;font-weight:bold" if n > 0 else "color:#ff5252;font-weight:bold")
+            except:
+                result.append("")
+        return result
 
     st.dataframe(
-        disp.style.map(color_type, subset=["Type"])
-                  .map(color_chg,  subset=["Change %"]),
+        disp.style.apply(color_type, subset=["Type"])
+                  .apply(color_chg,  subset=["Change %"]),
         use_container_width=True, height=300)
 
 # ── TAB 3 ─────────────────────────────────────────────────────────────────────
@@ -398,27 +409,40 @@ def render_tab3(pc, combined):
     dp = dp.sort_values("P(Tang|UP)%", ascending=False)
     dp = dp[dp[["So dot UP tang", "So dot DOWN giam"]].max(axis=1) >= min_periods]
 
-    def cu(v):
-        try:
-            g = min(int(float(v) * 2.55), 200)
-            return "background-color:rgba(0," + str(g) + ",80,0.4);color:#00e676"
-        except: return ""
+    def cu(s):
+        result = []
+        for v in s:
+            try:
+                g = min(int(float(v) * 2.55), 200)
+                result.append("background-color:rgba(0," + str(g) + ",80,0.4);color:#00e676")
+            except:
+                result.append("")
+        return result
 
-    def cd(v):
-        try:
-            r = min(int(float(v) * 2.55), 200)
-            return "background-color:rgba(" + str(r) + ",0,50,0.4);color:#ff5252"
-        except: return ""
+    def cd(s):
+        result = []
+        for v in s:
+            try:
+                r = min(int(float(v) * 2.55), 200)
+                result.append("background-color:rgba(" + str(r) + ",0,50,0.4);color:#ff5252")
+            except:
+                result.append("")
+        return result
 
-    def cc(v):
-        try: return "color:#00e676" if float(v) > 0 else "color:#ff5252"
-        except: return ""
+    def cc(s):
+        result = []
+        for v in s:
+            try:
+                result.append("color:#00e676" if float(v) > 0 else "color:#ff5252")
+            except:
+                result.append("")
+        return result
 
     st.dataframe(
         dp.style
-        .map(cu, subset=["P(Tang|UP)%"])
-        .map(cd, subset=["P(Giam|DOWN)%"])
-        .map(cc, subset=["Tong dong gop UP", "Tong keo giam DOWN"])
+        .apply(cu, subset=["P(Tang|UP)%"])
+        .apply(cd, subset=["P(Giam|DOWN)%"])
+        .apply(cc, subset=["Tong dong gop UP", "Tong keo giam DOWN"])
         .format({"P(Tang|UP)%": "{:.1f}%", "P(Giam|DOWN)%": "{:.1f}%",
                  "Tong dong gop UP": "{:+.1f}", "Tong keo giam DOWN": "{:+.1f}"}),
         use_container_width=True, height=500)
