@@ -1,17 +1,5 @@
 """
 app.py  -  Main entry point
-===========================================================
-Cau truc sidebar de phat trien them chuc nang:
-
-  DANH MUC HIEN CO:
-    Contribution Analysis  ->  contribution.py
-
-  CHO PHAT TRIEN THEM (them vao PAGES ben duoi):
-    - Screener
-    - Portfolio Tracker
-    - Market Overview
-    - ...
-===========================================================
 """
 
 import streamlit as st
@@ -21,10 +9,7 @@ import stockprice as stockprice_module
 import macro as macro_module
 import investors as investors_module
 import valuation as valuation_module
-# import screener        (phat trien sau)
-# import portfolio       (phat trien sau)
 
-# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="VNIndex Dashboard",
     page_icon="📈",
@@ -37,19 +22,19 @@ st.markdown(
     'div[data-testid="stMetricValue"]{font-size:1.4rem!important}'
     '[data-testid="stSidebar"]{min-width:220px;max-width:220px}'
     '.sidebar-title{font-size:18px;font-weight:700;color:#4fc3f7;padding:8px 0 4px 0;}'
-    '.sidebar-section{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;padding:12px 0 4px 0;}'
+    '.sidebar-section{font-size:11px;color:#888;text-transform:uppercase;'
+    'letter-spacing:1px;padding:12px 0 4px 0;}'
     '</style>',
     unsafe_allow_html=True)
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
+# "Dinh gia VNIndex" duoc dua len DAU (thu tu trong dict = thu tu hien thi)
 PAGES = {
+    "Dinh gia VNIndex":   ("📉", True),
     "Contribution":       ("📊", True),
     "Tich san co phieu":  ("💹", True),
     "Vi mo & Hang hoa":   ("🌍", True),
     "Investor Stats":     ("👥", True),
-    "Dinh gia VNIndex":   ("📉", True),
-    # "Screener":         ("🔍", False),  # TODO
-    # "Portfolio":        ("💼", False),  # TODO
 }
 
 with st.sidebar:
@@ -59,9 +44,9 @@ with st.sidebar:
     st.markdown('<div class="sidebar-section">Chuc nang</div>', unsafe_allow_html=True)
 
     enabled = {k: v for k, v in PAGES.items() if v[1]}
-    options  = [v[0] + " " + k for k, v in enabled.items()]
-    sel      = st.radio("", options, label_visibility="collapsed")
-    current  = sel.split(" ", 1)[1] if sel else ""
+    options = [v[0] + " " + k for k, v in enabled.items()]
+    sel     = st.radio("", options, label_visibility="collapsed")
+    current = sel.split(" ", 1)[1] if sel else ""
 
     st.markdown("---")
     st.markdown('<div class="sidebar-section">Sap ra mat</div>', unsafe_allow_html=True)
@@ -76,48 +61,55 @@ with st.sidebar:
         'Khong phai tu van dau tu</div>',
         unsafe_allow_html=True)
 
-# ── LOAD DATA ─────────────────────────────────────────────────────────────────
-try:
-    hist_df, pc_df, combined = load_and_prep()
-except Exception as e:
-    st.error("Khong tai duoc du lieu: " + str(e))
-    st.stop()
+# ── LOAD DATA (dung cho cac trang Contribution, etc.) ─────────────────────────
+# Chi load khi can, tranh lam cham trang Dinh gia
+@st.cache_data(ttl=3600, show_spinner=False)
+def _get_market_data():
+    return load_and_prep()
 
-# ── KPI BAR ───────────────────────────────────────────────────────────────────
-last_row = hist_df.iloc[-1]
-prev_row = hist_df.iloc[-2]
-delta    = last_row["Close"] - prev_row["Close"]
-delta_p  = delta / prev_row["Close"] * 100
+# ── KPI BAR: chi hien thi cho cac trang khong phai "Dinh gia VNIndex" ─────────
+if current != "Dinh gia VNIndex":
+    try:
+        hist_df, pc_df, combined = _get_market_data()
+    except Exception as e:
+        st.error("Khong tai duoc du lieu: " + str(e))
+        st.stop()
 
-k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("VNIndex",
-          "{:,.2f}".format(last_row["Close"]),
-          "{:+.2f} ({:+.2f}%)".format(delta, delta_p))
-k2.metric("Phien gan nhat", last_row["Date"].strftime("%d/%m/%Y"))
-pc_latest = pc_df.iloc[-1]
-k3.metric("Dot hien tai", pc_latest["Type"],
-          "{:+.1f}% / {} ngay".format(pc_latest["Change_pct"], int(pc_latest["Days"])))
-k4.metric("So dot co du lieu", str(pc_df["has_data"].sum()))
-k5.metric("Tong CP tracking", str(combined["StockCode"].nunique()))
+    last_row = hist_df.iloc[-1]
+    prev_row = hist_df.iloc[-2]
+    delta    = last_row["Close"] - prev_row["Close"]
+    delta_p  = delta / prev_row["Close"] * 100
 
-st.markdown("---")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("VNIndex",
+              "{:,.2f}".format(last_row["Close"]),
+              "{:+.2f} ({:+.2f}%)".format(delta, delta_p))
+    k2.metric("Phien gan nhat", last_row["Date"].strftime("%d/%m/%Y"))
+    pc_latest = pc_df.iloc[-1]
+    k3.metric("Dot hien tai", pc_latest["Type"],
+              "{:+.1f}% / {} ngay".format(pc_latest["Change_pct"], int(pc_latest["Days"])))
+    k4.metric("So dot co du lieu", str(pc_df["has_data"].sum()))
+    k5.metric("Tong CP tracking", str(combined["StockCode"].nunique()))
+    st.markdown("---")
 
 # ── ROUTE ─────────────────────────────────────────────────────────────────────
-if current == "Contribution":
+if current == "Dinh gia VNIndex":
+    st.title("📉 Dinh gia VNIndex")
+    st.caption("Phan tich dinh gia thi truong qua P/E va P/B – so sanh voi trung binh lich su")
+    valuation_module.render()
+
+elif current == "Contribution":
+    hist_df, pc_df, combined = _get_market_data()
     st.title("📊 Contribution Analysis")
     st.caption("Phan tich dong gop co phieu vao VNIndex theo cac dot tang/giam")
-
     tab1, tab2, tab3 = st.tabs([
         "Bang Contribution theo dot",
         "Chart lich su VNIndex",
         "Insights & Xac suat",
     ])
-    with tab1:
-        contrib_module.render_tab1(pc_df, combined)
-    with tab2:
-        contrib_module.render_tab2(hist_df, pc_df)
-    with tab3:
-        contrib_module.render_tab3(pc_df, combined)
+    with tab1: contrib_module.render_tab1(pc_df, combined)
+    with tab2: contrib_module.render_tab2(hist_df, pc_df)
+    with tab3: contrib_module.render_tab3(pc_df, combined)
 
 elif current == "Tich san co phieu":
     st.title("💹 Tich san Co phieu")
@@ -133,15 +125,6 @@ elif current == "Investor Stats":
     st.title("👥 Investor Statistics")
     st.caption("Thong ke mua ban cong don theo nhom nha dau tu")
     investors_module.render()
-
-elif current == "Dinh gia VNIndex":
-    st.title("📉 Dinh gia VNIndex")
-    st.caption("Phan tich dinh gia thi truong qua P/E va P/B – so sanh voi trung binh lich su")
-    valuation_module.render()
-
-# elif current == "Screener":
-#     import screener
-#     screener.render(hist_df, pc_df, combined)
 
 st.markdown("---")
 st.caption("VNIndex Dashboard · Du lieu HOSE · Khong phai tu van dau tu")
