@@ -20,6 +20,7 @@ import contribution as contrib_module
 import stockprice as stockprice_module
 import macro as macro_module
 import investors as investors_module
+import valuation as valuation_module
 # import screener        (phat trien sau)
 # import portfolio       (phat trien sau)
 
@@ -46,6 +47,7 @@ PAGES = {
     "Tich san co phieu":  ("💹", True),
     "Vi mo & Hang hoa":   ("🌍", True),
     "Investor Stats":     ("👥", True),
+    "Dinh gia VNIndex":   ("📉", True),
     # "Screener":         ("🔍", False),  # TODO
     # "Portfolio":        ("💼", False),  # TODO
 }
@@ -131,6 +133,11 @@ elif current == "Investor Stats":
     st.title("👥 Investor Statistics")
     st.caption("Thong ke mua ban cong don theo nhom nha dau tu")
     investors_module.render()
+
+elif current == "Dinh gia VNIndex":
+    st.title("📉 Dinh gia VNIndex")
+    st.caption("Phan tich dinh gia thi truong qua P/E va P/B – so sanh voi trung binh lich su")
+    valuation_module.render()
 
 # elif current == "Screener":
 #     import screener
