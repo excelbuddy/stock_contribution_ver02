@@ -1,10 +1,9 @@
 """
-valuation.py  v3
-Dinh gia VNIndex – PE & PB
-Fix:
-  1. cache_data.clear() + ttl ngan -> luon lay du lieu moi
-  2. Annotation dat o yaxis2 (truc phai rieng) -> khong bao gio che data
-  3. KPI: PE hien tai | so voi Mean | so voi Median | Vung dinh gia
+valuation.py  v4
+Changes:
+  - Summary PE+PB (KPI snapshot) hien thi o DAU trang truoc cac chart
+  - Bo rangeslider (chart nho phia duoi)
+  - Cac chart chi hien thi sau phan summary
 """
 
 import streamlit as st
@@ -35,23 +34,47 @@ def load_pepb():
 # ── ZONE ──────────────────────────────────────────────────────────────────────
 def _zone(val, mean, sd):
     p1, p2, p3, p4 = mean - sd, mean - 2*sd, mean + sd, mean + 2*sd
-    if val >= p4:   return "🔴 Rat dat (>+2SD)",              "#e53935"
-    if val >= p3:   return "🟠 Dat (+1SD ~ +2SD)",            "#fb8c00"
-    if val >= mean: return "🟡 Tren trung binh (Mean ~ +1SD)","#f9a825"
-    if val >= p1:   return "🟢 Duoi trung binh (-1SD ~ Mean)","#43a047"
-    if val >= p2:   return "🟢 Re (-2SD ~ -1SD)",             "#1b5e20"
-    return              "🔵 Rat re (<-2SD)",                  "#1565c0"
+    if val >= p4:   return "🔴 Rat dat (>+2SD)",               "#e53935"
+    if val >= p3:   return "🟠 Dat (+1SD ~ +2SD)",             "#fb8c00"
+    if val >= mean: return "🟡 Tren trung binh (Mean ~ +1SD)", "#f9a825"
+    if val >= p1:   return "🟢 Duoi trung binh (-1SD ~ Mean)", "#43a047"
+    if val >= p2:   return "🟢 Re (-2SD ~ -1SD)",              "#1b5e20"
+    return              "🔵 Rat re (<-2SD)",                   "#1565c0"
+
+# ── SNAPSHOT CARD (hien o dau) ────────────────────────────────────────────────
+def _snapshot_card(col_name, last_val, mean, median, sd, border_color):
+    zone_label, zone_color = _zone(last_val, mean, sd)
+    diff_mean   = (last_val - mean)   / abs(mean)   * 100 if mean   != 0 else 0
+    diff_median = (last_val - median) / abs(median) * 100 if median != 0 else 0
+    sign_m  = "▲" if diff_mean   > 0 else "▼"
+    sign_md = "▲" if diff_median > 0 else "▼"
+    dir_m   = "cao hon" if diff_mean   > 0 else "thap hon"
+    dir_md  = "cao hon" if diff_median > 0 else "thap hon"
+
+    return (
+        '<div style="border:1px solid ' + border_color + ';border-radius:8px;'
+        'padding:14px 18px;background:#fff;">'
+        '<div style="font-size:13px;font-weight:700;color:' + border_color + ';margin-bottom:8px;">'
+        + col_name + ' Ratio</div>'
+        '<div style="font-size:28px;font-weight:800;color:#111;line-height:1;">'
+        + '{:.2f}x'.format(last_val) + '</div>'
+        '<div style="margin-top:10px;font-size:12px;color:#555;line-height:1.9;">'
+        + sign_m + ' ' + dir_m + ' Mean&nbsp;<b>{:.1f}%</b> (Mean={:.2f})<br>'.format(abs(diff_mean), mean)
+        + sign_md + ' ' + dir_md + ' Median&nbsp;<b>{:.1f}%</b> (Med={:.2f})<br>'.format(abs(diff_median), median)
+        + '</div>'
+        '<div style="margin-top:8px;font-size:12px;padding:4px 8px;border-radius:4px;'
+        'background:' + zone_color + '22;color:' + zone_color + ';font-weight:600;">'
+        + zone_label + '</div>'
+        '<div style="margin-top:8px;font-size:11px;color:#888;">'
+        + '±1SD [{:.2f} – {:.2f}]&nbsp;&nbsp;±2SD [{:.2f} – {:.2f}]'.format(
+            mean - sd, mean + sd, mean - 2*sd, mean + 2*sd)
+        + '</div>'
+        '</div>'
+    )
 
 # ── CHART ─────────────────────────────────────────────────────────────────────
 def _build_chart(df_filtered, col, full_series,
-                 title, line_color, color_mean, color_median, height=530):
-    """
-    Dung make_subplots voi secondary_y=True.
-    Truc Y trai: gia tri PE/PB (data + stat lines)
-    Truc Y phai: dummy range giong Y trai, chi de hien tick labels
-                 = cac gia tri stat (Mean, Median, +/-1SD, +/-2SD, hien tai)
-    Nho do label khong bao gio che len data.
-    """
+                 title, line_color, color_mean, color_median, height=500):
     dp = df_filtered[["TradingDate", col]].dropna(subset=[col]).copy()
     if dp.empty:
         return go.Figure(), 0, 0, 0, 0
@@ -62,26 +85,14 @@ def _build_chart(df_filtered, col, full_series,
     sd     = float(v.std())
     last   = float(dp[col].iloc[-1])
 
-    stat_vals = {
-        col + " hien tai": (last,         line_color,   "solid",    2.0),
-        "Mean":             (mean,         color_mean,   "dash",     1.5),
-        "Median":           (median,       color_median, "dot",      1.5),
-        "+1SD":             (mean + sd,    "#fb8c00",    "dashdot",  1.1),
-        "-1SD":             (mean - sd,    "#fb8c00",    "dashdot",  1.1),
-        "+2SD":             (mean + 2*sd,  "#e53935",    "longdash", 1.0),
-        "-2SD":             (mean - 2*sd,  "#e53935",    "longdash", 1.0),
-    }
-
-    # Y range chung
-    all_y  = [t[0] for t in stat_vals.values()] + list(dp[col].dropna())
-    y_min  = min(all_y)
-    y_max  = max(all_y)
+    all_y  = list(dp[col].dropna()) + [mean+2*sd, mean-2*sd]
+    y_min, y_max = min(all_y), max(all_y)
     y_pad  = (y_max - y_min) * 0.08
     y_rng  = [y_min - y_pad, y_max + y_pad]
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # ── Line chinh (truc trai) ────────────────────────────────────────────────
+    # Line chinh
     fig.add_trace(go.Scatter(
         x=dp["TradingDate"], y=dp[col],
         mode="lines", name=col,
@@ -90,150 +101,86 @@ def _build_chart(df_filtered, col, full_series,
         showlegend=True,
     ), secondary_y=False)
 
-    x0 = dp["TradingDate"].iloc[0]
-    x1 = dp["TradingDate"].iloc[-1]
+    x0, x1 = dp["TradingDate"].iloc[0], dp["TradingDate"].iloc[-1]
 
-    # ── Stat lines (truc trai, hien trong legend) ─────────────────────────────
+    # Stat lines
     stat_legend = [
-        ("Mean",    mean,        color_mean,   "dash",     1.5),
-        ("Median",  median,      color_median, "dot",      1.5),
-        ("+1SD",    mean + sd,   "#fb8c00",    "dashdot",  1.1),
-        ("-1SD",    mean - sd,   "#fb8c00",    "dashdot",  1.1),
-        ("+2SD",    mean + 2*sd, "#e53935",    "longdash", 1.0),
-        ("-2SD",    mean - 2*sd, "#e53935",    "longdash", 1.0),
+        ("Mean",   mean,        color_mean,   "dash",     1.5),
+        ("Median", median,      color_median, "dot",      1.5),
+        ("+1SD",   mean + sd,   "#fb8c00",    "dashdot",  1.1),
+        ("-1SD",   mean - sd,   "#fb8c00",    "dashdot",  1.1),
+        ("+2SD",   mean + 2*sd, "#e53935",    "longdash", 1.0),
+        ("-2SD",   mean - 2*sd, "#e53935",    "longdash", 1.0),
     ]
     for label, yv, color, dash, w in stat_legend:
         fig.add_trace(go.Scatter(
             x=[x0, x1], y=[yv, yv],
-            mode="lines",
-            name=col + " " + label,
+            mode="lines", name=col + " " + label,
             line=dict(color=color, dash=dash, width=w),
-            hovertemplate=label + " = <b>" + "{:.2f}".format(yv) + "</b><extra></extra>",
+            hovertemplate=label + " = <b>{:.2f}</b><extra></extra>".format(yv),
             showlegend=True,
         ), secondary_y=False)
 
-    # ── Truc Y PHAI: tick tai dung cac gia tri stat ───────────────────────────
-    # Them 1 trace invisible tren secondary_y de keo tickvals vao
-    tick_vals  = sorted(set([last, mean, median,
-                              mean+sd, mean-sd, mean+2*sd, mean-2*sd]))
+    # Truc Y phai: tickvals tai cac gia tri stat
+    tick_vals = sorted(set([last, mean, median,
+                             mean+sd, mean-sd, mean+2*sd, mean-2*sd]))
 
-    def _tick_label(yv):
-        if abs(yv - last)       < 0.001: return "<b>" + col + "={:.2f}</b>".format(yv)
-        if abs(yv - mean)       < 0.001: return "Mean={:.2f}".format(yv)
-        if abs(yv - median)     < 0.001: return "Med={:.2f}".format(yv)
-        if abs(yv - (mean+sd))  < 0.001: return "+1SD={:.2f}".format(yv)
-        if abs(yv - (mean-sd))  < 0.001: return "-1SD={:.2f}".format(yv)
-        if abs(yv - (mean+2*sd))< 0.001: return "+2SD={:.2f}".format(yv)
-        if abs(yv - (mean-2*sd))< 0.001: return "-2SD={:.2f}".format(yv)
+    def _lbl(yv):
+        tol = 1e-6
+        if abs(yv - last)        < tol: return "<b>" + col + "={:.2f}</b>".format(yv)
+        if abs(yv - mean)        < tol: return "Mean={:.2f}".format(yv)
+        if abs(yv - median)      < tol: return "Med={:.2f}".format(yv)
+        if abs(yv - (mean+sd))   < tol: return "+1SD={:.2f}".format(yv)
+        if abs(yv - (mean-sd))   < tol: return "-1SD={:.2f}".format(yv)
+        if abs(yv - (mean+2*sd)) < tol: return "+2SD={:.2f}".format(yv)
+        if abs(yv - (mean-2*sd)) < tol: return "-2SD={:.2f}".format(yv)
         return "{:.2f}".format(yv)
 
-    tick_labels = [_tick_label(yv) for yv in tick_vals]
-
-    # Invisible scatter tren truc phai de set tickvals
     fig.add_trace(go.Scatter(
-        x=[x0], y=[last],
-        mode="markers", marker=dict(opacity=0, size=1),
+        x=[x0], y=[last], mode="markers",
+        marker=dict(opacity=0, size=1),
         showlegend=False, hoverinfo="skip",
     ), secondary_y=True)
 
-    # ── Layout ────────────────────────────────────────────────────────────────
     fig.update_layout(
         template="plotly_white",
-        title=dict(text=title, font=dict(size=15, color="#333"), x=0),
+        title=dict(text=title, font=dict(size=14, color="#333"), x=0),
         height=height,
-        margin=dict(l=60, r=20, t=50, b=50),
+        margin=dict(l=60, r=20, t=45, b=40),
         hovermode="x unified",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
+        plot_bgcolor="white", paper_bgcolor="white",
         font=dict(color="#333"),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom", y=1.02,
-            xanchor="left", x=0,
-            font=dict(size=11),
-        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="left", x=0, font=dict(size=11)),
         xaxis=dict(
             showgrid=True, gridcolor="#efefef",
             tickformat="%m/%Y", linecolor="#ccc",
-            rangeslider=dict(visible=True, thickness=0.04),
+            # KHONG co rangeslider
             type="date",
         ),
     )
-
-    # Truc trai
-    fig.update_yaxes(
-        range=y_rng,
-        showgrid=True, gridcolor="#efefef",
-        zeroline=False, linecolor="#ccc",
-        title_text=col,
-        secondary_y=False,
-    )
-
-    # Truc phai: tick tai cac gia tri stat, mau tuong ung, khong grid
-    # Phai set range = y_rng de dong bo voi truc trai
-    fig.update_yaxes(
-        range=y_rng,
-        tickvals=tick_vals,
-        ticktext=tick_labels,
-        showgrid=False,
-        zeroline=False,
-        tickfont=dict(size=10),
-        secondary_y=True,
-        side="right",
-    )
+    fig.update_yaxes(range=y_rng, showgrid=True, gridcolor="#efefef",
+                     zeroline=False, linecolor="#ccc",
+                     title_text=col, secondary_y=False)
+    fig.update_yaxes(range=y_rng,
+                     tickvals=tick_vals,
+                     ticktext=[_lbl(yv) for yv in tick_vals],
+                     showgrid=False, zeroline=False,
+                     tickfont=dict(size=10),
+                     secondary_y=True, side="right")
 
     return fig, mean, median, sd, last
-
-# ── KPI ROW ───────────────────────────────────────────────────────────────────
-def _render_kpi(col_name, last_val, mean, median, sd):
-    zone_label, zone_color = _zone(last_val, mean, sd)
-
-    diff_mean   = (last_val - mean)   / abs(mean)   * 100 if mean   != 0 else 0
-    diff_median = (last_val - median) / abs(median) * 100 if median != 0 else 0
-
-    sign_m  = "▲" if diff_mean   > 0 else "▼"
-    sign_md = "▲" if diff_median > 0 else "▼"
-    dir_m   = "cao hon" if diff_mean   > 0 else "thap hon"
-    dir_md  = "cao hon" if diff_median > 0 else "thap hon"
-
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(col_name + " Hien tai", "{:.2f}x".format(last_val))
-    k2.metric(
-        "So voi Mean ({:.2f})".format(mean),
-        "{} {} {:.1f}%".format(sign_m, dir_m, abs(diff_mean)),
-    )
-    k3.metric(
-        "So voi Median ({:.2f})".format(median),
-        "{} {} {:.1f}%".format(sign_md, dir_md, abs(diff_median)),
-    )
-    k4.metric("Vung dinh gia", zone_label)
-
-    st.markdown(
-        '<div style="background:#f8f8f8;border-left:4px solid '
-        + zone_color
-        + ';padding:7px 14px;border-radius:4px;margin:2px 0 18px 0;font-size:13px;">'
-        + col_name + " = <b>{:.2f}x</b>".format(last_val)
-        + " &nbsp;|&nbsp; Mean: {:.2f}".format(mean)
-        + " &nbsp;|&nbsp; Median: {:.2f}".format(median)
-        + " &nbsp;|&nbsp; ±1SD: [{:.2f} – {:.2f}]".format(mean - sd, mean + sd)
-        + " &nbsp;|&nbsp; ±2SD: [{:.2f} – {:.2f}]".format(mean - 2*sd, mean + 2*sd)
-        + '</div>',
-        unsafe_allow_html=True,
-    )
 
 # ── DATE CONTROLS ─────────────────────────────────────────────────────────────
 def _date_controls(min_date, max_date, key_prefix):
     c1, c2, c3 = st.columns([2, 2, 2])
     with c1:
-        preset = st.selectbox(
-            "Chon nhanh",
-            ["Toan bo", "10 nam", "5 nam", "3 nam", "1 nam"],
-            key=key_prefix + "_preset",
-        )
+        preset = st.selectbox("Chon nhanh",
+                              ["Toan bo", "10 nam", "5 nam", "3 nam", "1 nam"],
+                              key=key_prefix + "_preset")
     offsets = {"10 nam": 3650, "5 nam": 1825, "3 nam": 1095, "1 nam": 365}
-    ds = (max_date - datetime.timedelta(days=offsets[preset])
-          if preset in offsets else min_date)
-    ds = max(ds, min_date)
+    ds = max(max_date - datetime.timedelta(days=offsets[preset])
+             if preset in offsets else min_date, min_date)
     with c2:
         start = st.date_input("Tu ngay", value=ds,
                               min_value=min_date, max_value=max_date,
@@ -246,6 +193,7 @@ def _date_controls(min_date, max_date, key_prefix):
 
 # ── RENDER ────────────────────────────────────────────────────────────────────
 def render():
+    # Header + Refresh
     col_h, col_r = st.columns([9, 1])
     with col_r:
         if st.button("🔄 Refresh", key="val_refresh"):
@@ -271,13 +219,29 @@ def render():
     min_date = df["TradingDate"].min().date()
     max_date = df["TradingDate"].max().date()
 
-    # Stat tren TOAN BO lich su (bat bien vs date filter)
+    # Stat tren toan bo lich su
     pe_full = df["PE"].dropna()
     pb_full = df["PB"].dropna()
     mean_pe, med_pe, sd_pe = float(pe_full.mean()), float(pe_full.median()), float(pe_full.std())
     mean_pb, med_pb, sd_pb = float(pb_full.mean()), float(pb_full.median()), float(pb_full.std())
+    last_pe = float(pe_full.iloc[-1])
+    last_pb = float(pb_full.iloc[-1])
 
-    # ── PE ────────────────────────────────────────────────────────────────────
+    # ── SNAPSHOT ROW (PE + PB) o DAU ─────────────────────────────────────────
+    st.markdown("#### 📊 Dinh gia hien tai")
+    snap_c1, snap_c2 = st.columns(2)
+    with snap_c1:
+        st.markdown(
+            _snapshot_card("P/E", last_pe, mean_pe, med_pe, sd_pe, "#1565c0"),
+            unsafe_allow_html=True)
+    with snap_c2:
+        st.markdown(
+            _snapshot_card("P/B", last_pb, mean_pb, med_pb, sd_pb, "#e53935"),
+            unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ── CHART PE ──────────────────────────────────────────────────────────────
     st.markdown("### 📐 P/E Ratio – VNIndex")
     st.caption("Stat lines tinh tren toan bo lich su, doc lap voi bo loc ngay.")
     s_pe, e_pe = _date_controls(min_date, max_date, "pe")
@@ -285,19 +249,18 @@ def render():
                (df["TradingDate"] <= pd.Timestamp(e_pe))].copy()
 
     if not df_pe.empty and df_pe["PE"].notna().sum() > 0:
-        fig_pe, _, _, _, last_pe = _build_chart(
+        fig_pe, _, _, _, _ = _build_chart(
             df_pe, "PE", pe_full,
             "P/E VNIndex theo ngay",
             "#1565c0", "#7b1fa2", "#00838f",
         )
         st.plotly_chart(fig_pe, use_container_width=True)
-        _render_kpi("PE", last_pe, mean_pe, med_pe, sd_pe)
     else:
         st.warning("Khong co du lieu PE trong khoang thoi gian nay.")
 
     st.markdown("---")
 
-    # ── PB ────────────────────────────────────────────────────────────────────
+    # ── CHART PB ──────────────────────────────────────────────────────────────
     st.markdown("### 📐 P/B Ratio – VNIndex")
     st.caption("Stat lines tinh tren toan bo lich su, doc lap voi bo loc ngay.")
     s_pb, e_pb = _date_controls(min_date, max_date, "pb")
@@ -305,13 +268,12 @@ def render():
                (df["TradingDate"] <= pd.Timestamp(e_pb))].copy()
 
     if not df_pb.empty and df_pb["PB"].notna().sum() > 0:
-        fig_pb, _, _, _, last_pb = _build_chart(
+        fig_pb, _, _, _, _ = _build_chart(
             df_pb, "PB", pb_full,
             "P/B VNIndex theo ngay",
             "#e53935", "#7b1fa2", "#00838f",
         )
         st.plotly_chart(fig_pb, use_container_width=True)
-        _render_kpi("PB", last_pb, mean_pb, med_pb, sd_pb)
     else:
         st.warning("Khong co du lieu PB trong khoang thoi gian nay.")
 
