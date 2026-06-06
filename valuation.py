@@ -46,30 +46,77 @@ def _snapshot_card(col_name, last_val, mean, median, sd, border_color):
     zone_label, zone_color = _zone(last_val, mean, sd)
     diff_mean   = (last_val - mean)   / abs(mean)   * 100 if mean   != 0 else 0
     diff_median = (last_val - median) / abs(median) * 100 if median != 0 else 0
-    sign_m  = "▲" if diff_mean   > 0 else "▼"
-    sign_md = "▲" if diff_median > 0 else "▼"
-    dir_m   = "cao hon" if diff_mean   > 0 else "thap hon"
-    dir_md  = "cao hon" if diff_median > 0 else "thap hon"
 
+    def _cmp_html(diff, ref_name, ref_val):
+        if diff > 0:
+            # Cao hon ref -> XAU (dat hon) -> do dam + in dam + in nghieng
+            clr   = "#b71c1c"
+            icon  = "▲"
+            desc  = "cao hon"
+            style = ("display:inline-block;font-weight:800;font-style:italic;"
+                     "color:#fff;background:" + clr + ";"
+                     "padding:2px 8px;border-radius:4px;font-size:14px;")
+        else:
+            # Thap hon ref -> TOT (re hon) -> xanh la dam + in dam
+            clr   = "#1b5e20"
+            icon  = "▼"
+            desc  = "thap hon"
+            style = ("display:inline-block;font-weight:800;"
+                     "color:#fff;background:" + clr + ";"
+                     "padding:2px 8px;border-radius:4px;font-size:14px;")
+        return (
+            '<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">'
+            '<span style="' + style + '">'
+            + icon + '&nbsp;{:.1f}%'.format(abs(diff))
+            + '</span>'
+            '<span style="font-size:12px;color:#444;">'
+            + desc + '&nbsp;<b>' + ref_name + '</b>'
+            + '&nbsp;<span style="color:#999;font-size:11px;">({:.2f})</span>'.format(ref_val)
+            + '</span>'
+            '</div>'
+        )
+
+    # Header bar mau theo border_color
     return (
-        '<div style="border:1px solid ' + border_color + ';border-radius:8px;'
-        'padding:14px 18px;background:#fff;">'
-        '<div style="font-size:13px;font-weight:700;color:' + border_color + ';margin-bottom:8px;">'
-        + col_name + ' Ratio</div>'
-        '<div style="font-size:28px;font-weight:800;color:#111;line-height:1;">'
-        + '{:.2f}x'.format(last_val) + '</div>'
-        '<div style="margin-top:10px;font-size:12px;color:#555;line-height:1.9;">'
-        + sign_m + ' ' + dir_m + ' Mean&nbsp;<b>{:.1f}%</b> (Mean={:.2f})<br>'.format(abs(diff_mean), mean)
-        + sign_md + ' ' + dir_md + ' Median&nbsp;<b>{:.1f}%</b> (Med={:.2f})<br>'.format(abs(diff_median), median)
+        '<div style="border:2px solid ' + border_color + ';border-radius:12px;'
+        'overflow:hidden;box-shadow:0 2px 8px ' + border_color + '30;">'
+
+        # Header strip
+        + '<div style="background:' + border_color + ';padding:8px 18px;">'
+        + '<span style="font-size:13px;font-weight:800;color:#fff;'
+          'text-transform:uppercase;letter-spacing:1.5px;">'
+        + col_name + ' Ratio</span>'
         + '</div>'
-        '<div style="margin-top:8px;font-size:12px;padding:4px 8px;border-radius:4px;'
-        'background:' + zone_color + '22;color:' + zone_color + ';font-weight:600;">'
-        + zone_label + '</div>'
-        '<div style="margin-top:8px;font-size:11px;color:#888;">'
-        + '±1SD [{:.2f} – {:.2f}]&nbsp;&nbsp;±2SD [{:.2f} – {:.2f}]'.format(
+
+        # Body
+        + '<div style="padding:16px 20px;background:#fff;">'
+
+        # Gia tri hien tai
+        + '<div style="font-size:42px;font-weight:900;color:#111;line-height:1;'
+          'margin-bottom:14px;">'
+        + '{:.2f}'.format(last_val)
+        + '<span style="font-size:20px;font-weight:500;color:#aaa;">x</span>'
+        + '</div>'
+
+        # So sanh
+        + _cmp_html(diff_mean,   "Mean",   mean)
+        + _cmp_html(diff_median, "Median", median)
+
+        # Vung dinh gia
+        + '<div style="margin-top:14px;font-size:13px;padding:7px 12px;'
+          'border-radius:6px;background:' + zone_color + '18;'
+          'color:' + zone_color + ';font-weight:700;'
+          'border-left:4px solid ' + zone_color + ';">'
+        + zone_label
+        + '</div>'
+
+        # SD ranges
+        + '<div style="margin-top:10px;font-size:11px;color:#aaa;">'
+        + '±1SD&nbsp;[{:.2f}–{:.2f}]&nbsp;&nbsp;±2SD&nbsp;[{:.2f}–{:.2f}]'.format(
             mean - sd, mean + sd, mean - 2*sd, mean + 2*sd)
         + '</div>'
-        '</div>'
+
+        + '</div></div>'  # close body + card
     )
 
 # ── CHART ─────────────────────────────────────────────────────────────────────
@@ -146,7 +193,7 @@ def _build_chart(df_filtered, col, full_series,
         template="plotly_white",
         title=dict(text=title, font=dict(size=14, color="#333"), x=0),
         height=height,
-        margin=dict(l=60, r=20, t=45, b=40),
+        margin=dict(l=60, r=130, t=45, b=40),
         hovermode="x unified",
         plot_bgcolor="white", paper_bgcolor="white",
         font=dict(color="#333"),
@@ -167,7 +214,7 @@ def _build_chart(df_filtered, col, full_series,
                      ticktext=[_lbl(yv) for yv in tick_vals],
                      showgrid=False, zeroline=False,
                      tickfont=dict(size=10),
-                     secondary_y=True, side="right")
+                     automargin=True, secondary_y=True, side="right")
 
     return fig, mean, median, sd, last
 
