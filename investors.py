@@ -368,7 +368,7 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 align="left",
                 xanchor="left",
                 yanchor="top",
-                font=dict(size=12, color="#555"),
+                font=dict(size=10, color="#555"),
                 bgcolor="rgba(0,0,0,0)",
                 bordercolor="#bbb", borderwidth=1, borderpad=4,
             )
