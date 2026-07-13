@@ -334,7 +334,7 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 lines.append("<b>{}</b>".format(anchor_row["Date"].strftime("%d/%m/%Y")))
             if show_vni and anchor_row is not None and pd.notna(anchor_row.get("VNI", np.nan)):
                 lines.append(
-                    "<span style='color:{}'>VNIndex: {:,.0f}</span>".format(
+                    "<b><span style='color:{}'>VNIndex: {:,.0f}</span></b>".format(
                         VNI_COLOR, anchor_row["VNI"]))
 
             for grp_name, cfg in GROUPS.items():
@@ -350,7 +350,7 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                     lines.insert(0, "<b>{}</b>".format(
                         row_grp["Date"].strftime("%d/%m/%Y")))
                 lines.append(
-                    "<span style='color:{}'>{}: {} ty</span>".format(
+                    "<b><span style='color:{}'>{}: {} ty</span></b>".format(
                         cfg["color"], grp_name, _fmt_val(row_grp[col])))
 
             if anchor_row is None or len(lines) <= 1:
@@ -368,7 +368,7 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 align="left",
                 xanchor="left",
                 yanchor="top",
-                font=dict(size=9, color="#555"),
+                font=dict(size=12, color="#555"),
                 bgcolor="rgba(255,255,255,0.95)",
                 bordercolor="#bbb", borderwidth=1, borderpad=4,
             )
