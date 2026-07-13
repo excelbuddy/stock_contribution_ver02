@@ -369,7 +369,7 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 xanchor="left",
                 yanchor="top",
                 font=dict(size=12, color="#555"),
-                bgcolor="rgba(255,255,255,0.95)",
+                bgcolor="rgba(0,0,0,0)",
                 bordercolor="#bbb", borderwidth=1, borderpad=4,
             )
 
