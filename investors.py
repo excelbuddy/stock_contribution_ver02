@@ -305,6 +305,8 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
         )
 
     # ── Nhan cung ky (cung ngay/thang) cac nam truoc ──────────────────────────
+    # Gop tat ca gia tri cua 1 nam vao 1 khung nhan duy nhat (do gon), moi dong
+    # trong khung to mau theo dung mau cua chi so tuong ung.
     if show_anniversary and not df_plot.empty:
         anchor_date = df_plot["Date"].max()
         anchor_year = anchor_date.year
@@ -319,30 +321,48 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 target = anchor_date.replace(year=yr, day=28)
 
             yr_subset = df_plot[df_plot["Year"] == yr]
-            row = _nearest_row(yr_subset, target)
-            if row is None:
-                continue
 
-            lines = ["<b>{}</b>".format(row["Date"].strftime("%d/%m/%Y"))]
-            if show_vni and pd.notna(row.get("VNI", np.nan)):
-                lines.append("VNIndex: {:,.0f}".format(row["VNI"]))
+            # Tim ngay dai dien cho khung (uu tien theo VNI, neu khong co thi
+            # lay theo nhom dau tien co du lieu) de dat vi tri + hien thi tren nhan.
+            anchor_row = None
+            if show_vni:
+                vni_sub = yr_subset.dropna(subset=["VNI"])
+                anchor_row = _nearest_row(vni_sub, target)
+
+            lines = []
+            if anchor_row is not None:
+                lines.append("<b>{}</b>".format(anchor_row["Date"].strftime("%d/%m/%Y")))
+            if show_vni and anchor_row is not None and pd.notna(anchor_row.get("VNI", np.nan)):
+                lines.append(
+                    "<span style='color:{}'>VNIndex: {:,.0f}</span>".format(
+                        VNI_COLOR, anchor_row["VNI"]))
+
             for grp_name, cfg in GROUPS.items():
                 if grp_name not in selected_groups:
                     continue
-                v = row.get(cfg["col"], np.nan)
-                if pd.notna(v):
-                    lines.append(grp_name + ": " + _fmt_val(v) + " ty")
+                col = cfg["col"]
+                grp_sub = yr_subset.dropna(subset=[col])
+                row_grp = _nearest_row(grp_sub, target)
+                if row_grp is None:
+                    continue
+                if anchor_row is None:
+                    anchor_row = row_grp
+                    lines.insert(0, "<b>{}</b>".format(
+                        row_grp["Date"].strftime("%d/%m/%Y")))
+                lines.append(
+                    "<span style='color:{}'>{}: {} ty</span>".format(
+                        cfg["color"], grp_name, _fmt_val(row_grp[col])))
 
-            if len(lines) <= 1:
+            if anchor_row is None or len(lines) <= 1:
                 continue
 
             fig.add_vline(
-                x=row["Date"].timestamp() * 1000,
+                x=anchor_row["Date"].timestamp() * 1000,
                 line_dash="dash", line_color="#999",
                 line_width=1, opacity=0.5,
             )
             fig.add_annotation(
-                x=row["Date"], y=0.99, xref="x", yref="paper",
+                x=anchor_row["Date"], y=0.99, xref="x", yref="paper",
                 text="<br>".join(lines),
                 showarrow=False,
                 align="left",
