@@ -90,7 +90,19 @@ def _fmt_val(v):
         return "{:+,.0f}".format(v)
     return "{:+,.0f}".format(v)
 
-def build_chart(df, selected_groups, date_range, show_vni):
+def _nearest_row(df_subset, target_date, max_gap_days=10):
+    """Tim dong co Date gan target_date nhat trong df_subset.
+    Tra ve None neu khong co du lieu hoac lech qua max_gap_days."""
+    if df_subset.empty:
+        return None
+    diffs = (df_subset["Date"] - pd.Timestamp(target_date)).abs()
+    idx = diffs.idxmin()
+    if diffs.loc[idx].days > max_gap_days:
+        return None
+    return df_subset.loc[idx]
+
+
+def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True):
     mask = (df["Date"] >= pd.Timestamp(date_range[0])) & \
            (df["Date"] <= pd.Timestamp(date_range[1]))
     df_plot = df[mask].copy()
@@ -292,6 +304,55 @@ def build_chart(df, selected_groups, date_range, show_vni):
             borderpad=2,
         )
 
+    # ── Nhan cung ky (cung ngay/thang) cac nam truoc ──────────────────────────
+    if show_anniversary and not df_plot.empty:
+        anchor_date = df_plot["Date"].max()
+        anchor_year = anchor_date.year
+
+        for yr in years:
+            if yr == anchor_year:
+                continue
+            try:
+                target = anchor_date.replace(year=yr)
+            except ValueError:
+                # truong hop 29/2 khong ton tai o nam do -> lui ve 28/2
+                target = anchor_date.replace(year=yr, day=28)
+
+            yr_subset = df_plot[df_plot["Year"] == yr]
+            row = _nearest_row(yr_subset, target)
+            if row is None:
+                continue
+
+            lines = ["<b>{}</b>".format(row["Date"].strftime("%d/%m/%Y"))]
+            if show_vni and pd.notna(row.get("VNI", np.nan)):
+                lines.append("VNIndex: {:,.0f}".format(row["VNI"]))
+            for grp_name, cfg in GROUPS.items():
+                if grp_name not in selected_groups:
+                    continue
+                v = row.get(cfg["col"], np.nan)
+                if pd.notna(v):
+                    lines.append(grp_name + ": " + _fmt_val(v) + " ty")
+
+            if len(lines) <= 1:
+                continue
+
+            fig.add_vline(
+                x=row["Date"].timestamp() * 1000,
+                line_dash="dash", line_color="#999",
+                line_width=1, opacity=0.5,
+            )
+            fig.add_annotation(
+                x=row["Date"], y=0.99, xref="x", yref="paper",
+                text="<br>".join(lines),
+                showarrow=False,
+                align="left",
+                xanchor="left",
+                yanchor="top",
+                font=dict(size=9, color="#555"),
+                bgcolor="rgba(255,255,255,0.95)",
+                bordercolor="#bbb", borderwidth=1, borderpad=4,
+            )
+
     # ── Duong 0 tham chieu ────────────────────────────────────────────────────
     fig.add_hline(y=0, line_dash="dot", line_color="#aaa",
                   line_width=1, secondary_y=False)
@@ -446,8 +507,13 @@ def render():
         st.warning("Hay chon it nhat 1 nhom.")
         return
 
+    show_anniversary = st.checkbox(
+        "Hien thi nhan cung ky (cung ngay/thang) cac nam truoc",
+        value=True, key="inv_cb_anniversary",
+    )
+
     # ── Chart ─────────────────────────────────────────────────────────────────
-    fig = build_chart(df, selected, (start_date, end_date), show_vni)
+    fig = build_chart(df, selected, (start_date, end_date), show_vni, show_anniversary)
     st.plotly_chart(fig, use_container_width=True)
 
     # ── Bang so lieu ──────────────────────────────────────────────────────────
