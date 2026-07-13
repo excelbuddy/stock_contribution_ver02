@@ -305,6 +305,8 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
         )
 
     # ── Nhan cung ky (cung ngay/thang) cac nam truoc ──────────────────────────
+    # Dang giong nhan "dau cham + label" cua ngay moi nhat: 1 diem tren duong,
+    # label nam ngay canh diem, cung mau voi duong do.
     if show_anniversary and not df_plot.empty:
         anchor_date = df_plot["Date"].max()
         anchor_year = anchor_date.year
@@ -319,39 +321,66 @@ def build_chart(df, selected_groups, date_range, show_vni, show_anniversary=True
                 target = anchor_date.replace(year=yr, day=28)
 
             yr_subset = df_plot[df_plot["Year"] == yr]
-            row = _nearest_row(yr_subset, target)
-            if row is None:
-                continue
 
-            lines = ["<b>{}</b>".format(row["Date"].strftime("%d/%m/%Y"))]
-            if show_vni and pd.notna(row.get("VNI", np.nan)):
-                lines.append("VNIndex: {:,.0f}".format(row["VNI"]))
+            # ── Diem + label cho VNIndex (truc phai) ──────────────────────────
+            if show_vni:
+                vni_sub = yr_subset.dropna(subset=["VNI"])
+                row_vni = _nearest_row(vni_sub, target)
+                if row_vni is not None:
+                    fig.add_trace(go.Scatter(
+                        x=[row_vni["Date"]], y=[row_vni["VNI"]],
+                        mode="markers", marker=dict(color=VNI_COLOR, size=7),
+                        showlegend=False, hoverinfo="skip",
+                    ), secondary_y=True)
+                    fig.add_annotation(
+                        x=row_vni["Date"], y=row_vni["VNI"], xref="x", yref="y2",
+                        text="<b>VNIndex</b>: {:,.0f}".format(row_vni["VNI"]),
+                        showarrow=True, arrowhead=0, arrowwidth=1,
+                        arrowcolor=VNI_COLOR, ax=10, ay=0,
+                        xanchor="left", font=dict(size=9, color=VNI_COLOR),
+                        bgcolor="rgba(255,255,255,0.9)", borderpad=2,
+                    )
+
+            # ── Diem + label cho cac nhom NDT (truc trai) ─────────────────────
+            # Thu thap vi tri truoc de tranh chong nhan len nhau (nhu o cuoi duong)
+            yr_positions = []
+            yr_rows = {}
             for grp_name, cfg in GROUPS.items():
                 if grp_name not in selected_groups:
                     continue
-                v = row.get(cfg["col"], np.nan)
-                if pd.notna(v):
-                    lines.append(grp_name + ": " + _fmt_val(v) + " ty")
+                col = cfg["col"]
+                grp_sub = yr_subset.dropna(subset=[col])
+                row_grp = _nearest_row(grp_sub, target)
+                if row_grp is None:
+                    continue
+                yr_rows[grp_name] = row_grp
+                yr_positions.append((row_grp[col], grp_name, cfg["color"]))
 
-            if len(lines) <= 1:
-                continue
+            if len(yr_positions) > 1:
+                vals = [p[0] for p in yr_positions]
+                val_range = max(vals) - min(vals)
+                yr_min_gap = max(8, val_range / len(yr_positions) * 0.55)
+            else:
+                yr_min_gap = 8
 
-            fig.add_vline(
-                x=row["Date"].timestamp() * 1000,
-                line_dash="dash", line_color="#999",
-                line_width=1, opacity=0.5,
-            )
-            fig.add_annotation(
-                x=row["Date"], y=0.99, xref="x", yref="paper",
-                text="<br>".join(lines),
-                showarrow=False,
-                align="left",
-                xanchor="left",
-                yanchor="top",
-                font=dict(size=9, color="#555"),
-                bgcolor="rgba(255,255,255,0.95)",
-                bordercolor="#bbb", borderwidth=1, borderpad=4,
-            )
+            adjusted_yr = _adjust_labels(yr_positions, min_gap=yr_min_gap)
+            for (adj_y, grp_name, color) in adjusted_yr:
+                row_grp = yr_rows[grp_name]
+                real_y  = row_grp[GROUPS[grp_name]["col"]]
+                fig.add_trace(go.Scatter(
+                    x=[row_grp["Date"]], y=[real_y],
+                    mode="markers",
+                    marker=dict(color=color, size=6, line=dict(color="white", width=1)),
+                    showlegend=False, hoverinfo="skip",
+                ), secondary_y=False)
+                fig.add_annotation(
+                    x=row_grp["Date"], y=adj_y, xref="x", yref="y",
+                    text="<b>" + grp_name + "</b>: " + _fmt_val(real_y) + " ty",
+                    showarrow=True, arrowhead=0, arrowwidth=1, arrowcolor=color,
+                    ax=10, ay=0, xanchor="left",
+                    font=dict(size=9, color=color),
+                    bgcolor="rgba(255,255,255,0.9)", borderpad=2,
+                )
 
     # ── Duong 0 tham chieu ────────────────────────────────────────────────────
     fig.add_hline(y=0, line_dash="dot", line_color="#aaa",
